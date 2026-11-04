@@ -1,84 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ArrowDownIcon, ArrowUpIcon, CommentIcon } from "@/components/Icons";
+import { AwardsPanel } from "@/components/AwardsPanel";
 import { USER_STORAGE_KEY } from "@/components/UserIdentity";
+import { apiRequest } from "@/lib/api";
 
-type Comment = { id: number; author: string; body: string; age: string; score: number; replies?: Comment[] };
+type ApiComment = { id: number; author: string; profileImage?: string; body: string; score: number; parentCommentId?: number; createdAt: string };
+type Comment = ApiComment & { age: string };
 
-const INITIAL_COMMENTS: Comment[] = [
-  {
-    id: 1,
-    author: "curious_owl_482",
-    body: "The biggest change for me was writing the result in plain English first. The SQL became much less intimidating after that.",
-    age: "2h ago",
-    score: 42,
-    replies: [{ id: 2, author: "pixel_badger_119", body: "This is exactly how I approach joins now.", age: "1h ago", score: 17 }],
-  },
-  { id: 3, author: "quiet_panda_731", body: "Build a tiny project around the query you want to learn. It gives every clause a reason to exist.", age: "48m ago", score: 29 },
-  { id: 4, author: "cosmic_fox_304", body: "Also: read the error message slowly. It is usually more helpful than the tutorial you are searching for.", age: "21m ago", score: 18 },
-];
+function avatar(comment: Comment) { return comment.profileImage?.startsWith("data:image/") ? <img src={comment.profileImage} alt="" /> : comment.profileImage || comment.author[0]?.toUpperCase(); }
 
-function CommentItem({ comment }: { comment: Comment }) {
-  const [score, setScore] = useState(comment.score);
-  const [vote, setVote] = useState<"up" | "down" | null>(null);
-
-  function changeVote(next: "up" | "down") {
-    if (vote === next) {
-      setScore((current) => current + (next === "up" ? -1 : 1));
-      setVote(null);
-      return;
-    }
-    setScore((current) => current + (next === "up" ? 1 : -1) + (vote === "up" ? -1 : vote === "down" ? 1 : 0));
-    setVote(next);
-  }
-
-  return (
-    <li className="comment-item">
-      <div className="comment-avatar" aria-hidden="true">{comment.author[0].toUpperCase()}</div>
-      <div className="min-w-0 flex-1">
-        <p className="comment-meta"><strong>u/{comment.author}</strong> · {comment.age}</p>
-        <p className="mt-2 leading-relaxed">{comment.body}</p>
-        <div className="comment-actions">
-          <button type="button" className={`vote-btn ${vote === "up" ? "is-up" : ""}`} aria-label="Upvote comment" onClick={() => changeVote("up")}><ArrowUpIcon /> {score}</button>
-          <button type="button" className={`vote-btn ${vote === "down" ? "is-down" : ""}`} aria-label="Downvote comment" onClick={() => changeVote("down")}><ArrowDownIcon /></button>
-          <button type="button" className="comment-btn"><CommentIcon /> Reply</button>
-        </div>
-        {comment.replies && <ul className="comment-replies">{comment.replies.map((reply) => <CommentItem key={reply.id} comment={reply} />)}</ul>}
-      </div>
-    </li>
-  );
+function CommentItem({ comment, postSlug, currentUser, reload }: { comment: Comment; postSlug: string; currentUser: string | null; reload: () => void }) {
+  const [score, setScore] = useState(comment.score); const [vote, setVote] = useState<"up" | "down" | null>(null); const [replying, setReplying] = useState(false); const [reply, setReply] = useState(""); const [editing, setEditing] = useState(false); const [editBody, setEditBody] = useState(comment.body); const [confirmDelete, setConfirmDelete] = useState(false);
+  async function voteComment(next: "up" | "down") { const remove = vote === next; setVote(remove ? null : next); setScore((value) => value + (remove ? (next === "up" ? -1 : 1) : next === "up" ? 1 : -1)); await apiRequest(`/api/comments/${comment.id}/vote`, { method: "POST", body: JSON.stringify({ vote: remove ? "remove" : next }) }).catch(() => undefined); }
+  async function submitReply(event: React.FormEvent) { event.preventDefault(); if (!reply.trim()) return; await apiRequest(`/api/posts/${postSlug}/comments`, { method: "POST", body: JSON.stringify({ body: reply, parentCommentId: comment.id }) }).then(() => { setReply(""); setReplying(false); reload(); }).catch(() => undefined); }
+  async function saveEdit(event: React.FormEvent) { event.preventDefault(); await apiRequest(`/api/comments/${comment.id}`, { method: "PUT", body: JSON.stringify({ body: editBody }) }).then(() => { setEditing(false); reload(); }).catch(() => undefined); }
+  async function deleteComment() { await apiRequest(`/api/comments/${comment.id}`, { method: "DELETE" }).then(reload).catch(() => undefined); }
+  return <li className="comment-item"><div className="comment-avatar" aria-hidden="true">{avatar(comment)}</div><div className="min-w-0 flex-1"><p className="comment-meta"><strong>u/{comment.author}</strong> · {comment.age}</p>{editing ? <form className="mt-2 flex gap-2" onSubmit={saveEdit}><input className="input" value={editBody} onChange={(e) => setEditBody(e.target.value)} /><button className="btn">Save</button></form> : <p className="mt-2 leading-relaxed">{comment.body}</p>}<div className="comment-actions"><button type="button" className={`vote-btn ${vote === "up" ? "is-up" : ""}`} onClick={() => void voteComment("up")}><ArrowUpIcon /> {score}</button><button type="button" className={`vote-btn ${vote === "down" ? "is-down" : ""}`} onClick={() => void voteComment("down")}><ArrowDownIcon /></button><button type="button" className="comment-btn" onClick={() => setReplying(!replying)}><CommentIcon /> Reply</button><AwardsPanel commentId={comment.id}/>{currentUser === comment.author && <><button type="button" className="comment-btn" onClick={() => setEditing(!editing)}>Edit</button><button type="button" className="comment-btn" onClick={() => setConfirmDelete(!confirmDelete)}>Delete</button></>}</div>{confirmDelete && <div className="delete-confirm" role="alert">Delete this comment? <button type="button" className="comment-btn delete-confirm-yes" onClick={() => void deleteComment()}>Delete</button><button type="button" className="comment-btn" onClick={() => setConfirmDelete(false)}>Cancel</button></div>}{replying && <form className="mt-3 flex gap-2" onSubmit={submitReply}><input className="input" placeholder="Write a reply" value={reply} onChange={(e) => setReply(e.target.value)} /><button className="btn">Reply</button></form>}</div></li>;
 }
 
-export function CommentsSection({ count }: { count: number }) {
-  const [comments, setComments] = useState(INITIAL_COMMENTS);
-  const [body, setBody] = useState("");
-
-  function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const text = body.trim();
-    if (!text) return;
-    const author = window.localStorage.getItem(USER_STORAGE_KEY) ?? "anonymous_getter";
-    setComments((current) => [{ id: Date.now(), author, body: text, age: "just now", score: 1 }, ...current]);
-    setBody("");
-  }
-
-  return (
-    <section className="mt-12 border-t-2 border-ink pt-8" id="comments" aria-labelledby="comments-title">
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="comments-title" className="display text-xl font-bold">Comments</h2>
-        <span className="post-meta">{count} comments</span>
-      </div>
-      <form className="mt-5" onSubmit={submit}>
-        <label htmlFor="comment-body" className="sr-only">Add a comment</label>
-        <textarea id="comment-body" className="input min-h-28 resize-y" placeholder="What do you think?" value={body} onChange={(event) => setBody(event.target.value)} />
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted">Log in to comment with your getit username.</p>
-          <div className="flex gap-2"><Link href="/subscribe" className="btn-ghost">Log in</Link><button className="btn" type="submit">Comment</button></div>
-        </div>
-      </form>
-      <ol className="mt-8 space-y-6">{comments.map((comment) => <CommentItem key={comment.id} comment={comment} />)}</ol>
-    </section>
-  );
+export function CommentsSection({ postSlug, count }: { postSlug: string; count: number }) {
+  const router = useRouter(); const [comments, setComments] = useState<Comment[]>([]); const [body, setBody] = useState(""); const [currentUser, setCurrentUser] = useState<string | null>(null); const [displayCount, setDisplayCount] = useState(count);
+  function load() { void apiRequest<ApiComment[]>(`/api/posts/${postSlug}/comments`).then((items) => { const mapped = items.map((item) => ({ ...item, age: new Date(item.createdAt).toLocaleString() })); setComments(mapped); setDisplayCount(mapped.length); }).catch(() => undefined); }
+  useEffect(() => { load(); void apiRequest<{ username: string }>("/api/auth/me").then((user) => setCurrentUser(user.username)).catch(() => setCurrentUser(null)); }, [postSlug]);
+  function submit(event: React.FormEvent) { event.preventDefault(); if (!body.trim()) return; if (!window.localStorage.getItem(USER_STORAGE_KEY)) { router.push("/subscribe"); return; } void apiRequest(`/api/posts/${postSlug}/comments`, { method: "POST", body: JSON.stringify({ body }) }).then(() => { setBody(""); load(); }).catch(() => undefined); }
+  return <section className="mt-12 border-t-2 border-ink pt-8" id="comments" aria-labelledby="comments-title"><div className="flex items-center justify-between gap-3"><h2 id="comments-title" className="display text-xl font-bold">Comments</h2><span className="post-meta">{displayCount} comments</span></div><form className="mt-5" onSubmit={submit}><textarea className="input min-h-28 resize-y" placeholder="What do you think?" value={body} onChange={(e) => setBody(e.target.value)}/><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">{currentUser ? `Commenting as u/${currentUser}.` : "Log in to comment with your getit username."}</p><div className="flex gap-2">{!currentUser && <Link href="/subscribe" className="btn-ghost">Log in</Link>}<button className="btn">Comment</button></div></div></form><ol className="mt-8 space-y-6">{comments.filter((comment) => !comment.parentCommentId).map((comment) => <CommentItem key={comment.id} comment={comment} postSlug={postSlug} currentUser={currentUser} reload={load}/>)}</ol></section>;
 }

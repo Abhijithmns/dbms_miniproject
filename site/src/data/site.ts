@@ -17,6 +17,7 @@ export const NAV: NavLink[] = [
   { href: "/series", label: "Subgetits" },
   { href: "/tags", label: "Topics" },
   { href: "/profile", label: "Profile" },
+  { href: "/messages", label: "Messages" },
   { href: "/about", label: "About" },
 ];
 

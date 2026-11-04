@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRightIcon } from "@/components/Icons";
 import { SERIES, minutesOf, pad2, partsOf } from "@/data/posts";
 import { pageMetadata } from "@/lib/metadata";
+import { SubgetitActions } from "@/components/SubgetitActions";
 
 export const metadata = pageMetadata(
   "Series",
@@ -42,6 +43,7 @@ export default function SeriesPage() {
                 <Link href={parts[0].href} className="btn mt-6">
                   Visit subgetit <ArrowRightIcon />
                 </Link>
+                <SubgetitActions name={s.name} />
               </div>
               <ol className="divide-y divide-dashed divide-line border-y border-dashed border-line">
                 {parts.map((p) => (

@@ -256,6 +256,11 @@
   .comment-meta { color: var(--muted); font-family: var(--font-mono); font-size: .75rem; }
   .comment-meta strong { color: var(--ink); }
   .comment-actions { display: flex; align-items: center; gap: .3rem; margin-top: .45rem; font-family: var(--font-mono); font-size: .75rem; color: var(--muted); }
+  .award-control { position: relative; }
+  .award-menu { position: absolute; left: 0; top: calc(100% + .25rem); z-index: 10; display: grid; min-width: 12rem; gap: .2rem; padding: .45rem; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); box-shadow: 3px 3px 0 var(--shadow); }
+  .award-menu button { padding: .45rem .6rem; text-align: left; border-radius: 3px; cursor: pointer; }
+  .award-menu button:hover { background: var(--line); }
+  .award-menu small { padding: .4rem; color: var(--muted); }
   .comment-replies { margin-top: 1rem; border-left: 2px solid var(--line); padding-left: 1rem; }
   .profile-card { display: flex; min-height: 13rem; flex-direction: column; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 1.5rem; box-shadow: 3px 3px 0 var(--shadow); }
   .profile-avatar { display: grid; place-items: center; width: 7rem; height: 7rem; border-radius: 999px; background: var(--pen-soft); font-size: 3.5rem; }

@@ -59,7 +59,7 @@ export default function PostPage() {
 
             <PostNav slug={post.slug} />
 
-            <CommentsSection count={post.comments} />
+            <CommentsSection postSlug={post.slug} count={post.comments} />
           </div>
 
           <aside className="hidden lg:block" aria-label="On this page">

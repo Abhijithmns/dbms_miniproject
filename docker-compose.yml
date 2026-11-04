@@ -1,0 +1,43 @@
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: dbms_miniproject
+      MARIADB_USER: getit
+      MARIADB_PASSWORD: getit
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./dbms_miniproject.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./sql/seed_demo.sql:/docker-entrypoint-initdb.d/002-seed.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ./backend
+    environment:
+      MYSQL_DSN: getit:getit@tcp(db:3306)/dbms_miniproject?parseTime=true&charset=utf8mb4
+      SESSION_SECRET: getit-docker-development-secret
+      API_ADDR: :8080
+      WEB_ORIGIN: http://localhost:3000
+      REDIS_ADDR: redis:6379
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+volumes:
+  mariadb_data:
