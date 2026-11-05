@@ -11,19 +11,83 @@ import (
 )
 
 func (s *server) posts(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.db.QueryContext(r.Context(), `SELECT p.post_id,p.title,COALESCE(p.body,''),COALESCE(p.flair,''),s.name,u.username,p.created_at,p.karma,(SELECT COUNT(*) FROM comment c WHERE c.post_id=p.post_id) FROM post p JOIN subreddit s ON s.subreddit_id=p.subreddit_id JOIN app_user u ON u.user_id=p.user_id ORDER BY p.created_at DESC`)
+	rows, err := s.db.QueryContext(r.Context(), `
+		SELECT p.post_id, p.title, COALESCE(p.body,''), COALESCE(p.flair,''),
+		       s.name, p.subreddit_id, u.username, p.created_at, p.karma,
+		       (SELECT COUNT(*) FROM comment c WHERE c.post_id=p.post_id)
+		FROM post p
+		JOIN subreddit s ON s.subreddit_id=p.subreddit_id
+		JOIN app_user u ON u.user_id=p.user_id
+		ORDER BY p.created_at DESC
+	`)
 	if err != nil {
 		errorJSON(w, 500, err.Error())
 		return
 	}
 	defer rows.Close()
+
+	userVotes := map[int64]string{}
+	userJoins := map[int64]bool{}
+	savedSet := map[string]bool{}
+	if u, ok := s.currentUser(r); ok {
+		if vRows, err := s.db.QueryContext(r.Context(), "SELECT post_id, vote_type FROM votes_on WHERE user_id=?", u.ID); err == nil {
+			defer vRows.Close()
+			for vRows.Next() {
+				var pid int64
+				var vt string
+				if vRows.Scan(&pid, &vt) == nil {
+					if vt == "upvote" {
+						userVotes[pid] = "up"
+					} else if vt == "downvote" {
+						userVotes[pid] = "down"
+					}
+				}
+			}
+		}
+		if jRows, err := s.db.QueryContext(r.Context(), "SELECT subreddit_id FROM joins WHERE user_id=?", u.ID); err == nil {
+			defer jRows.Close()
+			for jRows.Next() {
+				var sid int64
+				if jRows.Scan(&sid) == nil {
+					userJoins[sid] = true
+				}
+			}
+		}
+		if resp, err := s.redisCommand("SMEMBERS", "getit:saved_posts:"+strconv.FormatInt(u.ID, 10)); err == nil {
+			for _, line := range strings.Split(resp, "\r\n") {
+				line = strings.TrimSpace(line)
+				if line != "" && !strings.HasPrefix(line, "$") && !strings.HasPrefix(line, "*") {
+					savedSet[line] = true
+				}
+			}
+		}
+	}
+
 	out := []map[string]any{}
 	for rows.Next() {
-		var id, karma, count int64
+		var id, subId, karma, count int64
 		var title, body, flair, sub, author string
 		var created time.Time
-		if rows.Scan(&id, &title, &body, &flair, &sub, &author, &created, &karma, &count) == nil {
-			out = append(out, map[string]any{"id": id, "title": title, "excerpt": body, "flair": flair, "subgetit": sub, "author": author, "createdAt": created, "karma": karma, "comments": count})
+		if rows.Scan(&id, &title, &body, &flair, &sub, &subId, &author, &created, &karma, &count) == nil {
+			pidStr := strconv.FormatInt(id, 10)
+			out = append(out, map[string]any{
+				"id":          id,
+				"postId":      id,
+				"slug":        pidStr,
+				"title":       title,
+				"body":        body,
+				"excerpt":     body,
+				"flair":       flair,
+				"subgetit":    sub,
+				"subredditId": subId,
+				"author":      author,
+				"createdAt":   created,
+				"karma":       karma,
+				"comments":    count,
+				"userVote":    userVotes[id],
+				"joined":      userJoins[subId],
+				"saved":       savedSet[pidStr],
+			})
 		}
 	}
 	jsonJSON(w, 200, out)
@@ -35,27 +99,87 @@ func (s *server) createPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var q struct {
-		Title, Body, Flair string
-		SubredditID        int64
+		Title, Body, Flair, Subgetit string
+		SubredditID                  int64
 	}
 	_ = json.NewDecoder(r.Body).Decode(&q)
-	res, err := s.db.ExecContext(r.Context(), "INSERT INTO post(title,body,flair,user_id,subreddit_id) VALUES(?,?,?,?,?)", clean(q.Title), q.Body, q.Flair, u.ID, q.SubredditID)
+	title := clean(q.Title)
+	if title == "" {
+		errorJSON(w, 400, "title cannot be empty")
+		return
+	}
+	subID := q.SubredditID
+	if subID == 0 && q.Subgetit != "" {
+		_ = s.db.QueryRowContext(r.Context(), "SELECT subreddit_id FROM subreddit WHERE name=?", q.Subgetit).Scan(&subID)
+	}
+	if subID == 0 {
+		_ = s.db.QueryRowContext(r.Context(), "SELECT subreddit_id FROM subreddit ORDER BY subreddit_id ASC LIMIT 1").Scan(&subID)
+	}
+	res, err := s.db.ExecContext(r.Context(), "INSERT INTO post(title,body,flair,user_id,subreddit_id) VALUES(?,?,?,?,?)", title, q.Body, q.Flair, u.ID, subID)
 	if err != nil {
 		errorJSON(w, 400, err.Error())
 		return
 	}
 	id, _ := res.LastInsertId()
-	jsonJSON(w, 201, map[string]any{"postId": id})
+	jsonJSON(w, 201, map[string]any{"postId": id, "id": id, "slug": strconv.FormatInt(id, 10)})
 }
 func (s *server) postDetails(w http.ResponseWriter, r *http.Request) {
 	id := s.postID(r.Context(), r.PathValue("slug"))
-	var title string
-	var owner int64
-	if err := s.db.QueryRowContext(r.Context(), "SELECT title,user_id FROM post WHERE post_id=?", id).Scan(&title, &owner); err != nil {
+	var pId, karma, count, authorId, subId int64
+	var title, body, flair, subName, author string
+	var created time.Time
+	err := s.db.QueryRowContext(r.Context(), `
+		SELECT p.post_id, p.title, COALESCE(p.body,''), COALESCE(p.flair,''),
+		       p.user_id, u.username, p.subreddit_id, s.name, p.created_at, p.karma,
+		       (SELECT COUNT(*) FROM comment c WHERE c.post_id=p.post_id)
+		FROM post p
+		JOIN app_user u ON u.user_id=p.user_id
+		JOIN subreddit s ON s.subreddit_id=p.subreddit_id
+		WHERE p.post_id=?
+	`, id).Scan(&pId, &title, &body, &flair, &authorId, &author, &subId, &subName, &created, &karma, &count)
+	if err != nil {
 		errorJSON(w, 404, "post not found")
 		return
 	}
-	jsonJSON(w, 200, map[string]any{"postId": id, "title": title, "authorId": owner})
+	userVote := ""
+	saved := false
+	joined := false
+	if u, ok := s.currentUser(r); ok {
+		var vt string
+		if s.db.QueryRowContext(r.Context(), "SELECT vote_type FROM votes_on WHERE user_id=? AND post_id=?", u.ID, id).Scan(&vt) == nil {
+			if vt == "upvote" {
+				userVote = "up"
+			} else if vt == "downvote" {
+				userVote = "down"
+			}
+		}
+		var jID int64
+		if s.db.QueryRowContext(r.Context(), "SELECT subreddit_id FROM joins WHERE user_id=? AND subreddit_id=?", u.ID, subId).Scan(&jID) == nil {
+			joined = true
+		}
+		if resp, err := s.redisCommand("SISMEMBER", "getit:saved_posts:"+strconv.FormatInt(u.ID, 10), strconv.FormatInt(pId, 10)); err == nil && strings.Contains(resp, ":1") {
+			saved = true
+		}
+	}
+	jsonJSON(w, 200, map[string]any{
+		"id":          pId,
+		"postId":      pId,
+		"slug":        strconv.FormatInt(pId, 10),
+		"title":       title,
+		"body":        body,
+		"excerpt":     body,
+		"flair":       flair,
+		"authorId":    authorId,
+		"author":      author,
+		"subredditId": subId,
+		"subgetit":    subName,
+		"createdAt":   created,
+		"karma":       karma,
+		"comments":    count,
+		"userVote":    userVote,
+		"saved":       saved,
+		"joined":      joined,
+	})
 }
 func (s *server) updatePost(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)
@@ -63,9 +187,10 @@ func (s *server) updatePost(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, 401, "login required")
 		return
 	}
+	id := s.postID(r.Context(), r.PathValue("id"))
 	var q struct{ Title, Body, Flair string }
 	_ = json.NewDecoder(r.Body).Decode(&q)
-	result, err := s.db.Exec("UPDATE post SET title=?,body=?,flair=? WHERE post_id=? AND user_id=?", clean(q.Title), q.Body, q.Flair, r.PathValue("id"), u.ID)
+	result, err := s.db.Exec("UPDATE post SET title=?,body=?,flair=? WHERE post_id=? AND user_id=?", clean(q.Title), q.Body, q.Flair, id, u.ID)
 	if err != nil {
 		errorJSON(w, 400, err.Error())
 		return
@@ -83,7 +208,8 @@ func (s *server) deletePost(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, 401, "login required")
 		return
 	}
-	result, err := s.db.Exec("DELETE FROM post WHERE post_id=? AND user_id=?", r.PathValue("id"), u.ID)
+	id := s.postID(r.Context(), r.PathValue("id"))
+	result, err := s.db.Exec("DELETE FROM post WHERE post_id=? AND user_id=?", id, u.ID)
 	if err != nil {
 		errorJSON(w, 400, err.Error())
 		return
@@ -175,21 +301,61 @@ func (s *server) votePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := s.postID(r.Context(), r.PathValue("slug"))
-	vote := r.FormValue("vote")
+	if id == 0 {
+		errorJSON(w, 404, "post not found")
+		return
+	}
 	var q map[string]string
 	_ = json.NewDecoder(r.Body).Decode(&q)
-	vote = q["vote"]
-	if vote == "remove" {
-		_, _ = s.db.Exec("DELETE FROM votes_on WHERE user_id=? AND post_id=?", u.ID, id)
+	vote := q["vote"]
+
+	var prevVote string
+	_ = s.db.QueryRowContext(r.Context(), "SELECT vote_type FROM votes_on WHERE user_id=? AND post_id=?", u.ID, id).Scan(&prevVote)
+
+	prevDelta := 0
+	if prevVote == "upvote" {
+		prevDelta = 1
+	} else if prevVote == "downvote" {
+		prevDelta = -1
+	}
+
+	newDelta := 0
+	if vote == "up" {
+		newDelta = 1
+	} else if vote == "down" {
+		newDelta = -1
+	}
+
+	delta := newDelta - prevDelta
+	if vote == "remove" || vote == "" {
+		_, _ = s.db.ExecContext(r.Context(), "DELETE FROM votes_on WHERE user_id=? AND post_id=?", u.ID, id)
 	} else {
-		_, _ = s.db.Exec("INSERT INTO votes_on(user_id,post_id,vote_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE vote_type=VALUES(vote_type)", u.ID, id, map[bool]string{true: "downvote", false: "upvote"}[vote == "down"])
-		delta := 1
+		vt := "upvote"
 		if vote == "down" {
-			delta = -1
+			vt = "downvote"
 		}
+		_, _ = s.db.ExecContext(r.Context(), "INSERT INTO votes_on(user_id,post_id,vote_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE vote_type=VALUES(vote_type)", u.ID, id, vt)
+	}
+
+	if delta != 0 {
 		_, _ = s.db.ExecContext(r.Context(), "UPDATE post SET karma=karma+? WHERE post_id=?", delta, id)
 	}
-	jsonJSON(w, 200, map[string]string{"message": "vote recorded"})
+
+	var newKarma int64
+	_ = s.db.QueryRowContext(r.Context(), "SELECT karma FROM post WHERE post_id=?", id).Scan(&newKarma)
+
+	userVoteStr := ""
+	if newDelta == 1 {
+		userVoteStr = "up"
+	} else if newDelta == -1 {
+		userVoteStr = "down"
+	}
+
+	jsonJSON(w, 200, map[string]any{
+		"message":  "vote recorded",
+		"karma":    newKarma,
+		"userVote": userVoteStr,
+	})
 }
 func (s *server) voteComment(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)
@@ -199,18 +365,56 @@ func (s *server) voteComment(w http.ResponseWriter, r *http.Request) {
 	}
 	var q map[string]string
 	_ = json.NewDecoder(r.Body).Decode(&q)
+	vote := q["vote"]
 	id := r.PathValue("id")
-	if q["vote"] == "remove" {
-		_, _ = s.db.Exec("DELETE FROM comment_votes WHERE comment_id=? AND user_id=?", id, u.ID)
+
+	var prevVote string
+	_ = s.db.QueryRowContext(r.Context(), "SELECT vote_type FROM comment_votes WHERE comment_id=? AND user_id=?", id, u.ID).Scan(&prevVote)
+
+	prevDelta := 0
+	if prevVote == "upvote" {
+		prevDelta = 1
+	} else if prevVote == "downvote" {
+		prevDelta = -1
+	}
+
+	newDelta := 0
+	if vote == "up" {
+		newDelta = 1
+	} else if vote == "down" {
+		newDelta = -1
+	}
+
+	delta := newDelta - prevDelta
+	if vote == "remove" || vote == "" {
+		_, _ = s.db.ExecContext(r.Context(), "DELETE FROM comment_votes WHERE comment_id=? AND user_id=?", id, u.ID)
 	} else {
-		_, _ = s.db.Exec("INSERT INTO comment_votes(comment_id,user_id,vote_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE vote_type=VALUES(vote_type)", id, u.ID, map[bool]string{true: "downvote", false: "upvote"}[q["vote"] == "down"])
-		delta := 1
-		if q["vote"] == "down" {
-			delta = -1
+		vt := "upvote"
+		if vote == "down" {
+			vt = "downvote"
 		}
+		_, _ = s.db.ExecContext(r.Context(), "INSERT INTO comment_votes(comment_id,user_id,vote_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE vote_type=VALUES(vote_type)", id, u.ID, vt)
+	}
+
+	if delta != 0 {
 		_, _ = s.db.ExecContext(r.Context(), "UPDATE comment SET karma=karma+? WHERE comment_id=?", delta, id)
 	}
-	jsonJSON(w, 200, map[string]string{"message": "vote recorded"})
+
+	var newKarma int64
+	_ = s.db.QueryRowContext(r.Context(), "SELECT karma FROM comment WHERE comment_id=?", id).Scan(&newKarma)
+
+	userVoteStr := ""
+	if newDelta == 1 {
+		userVoteStr = "up"
+	} else if newDelta == -1 {
+		userVoteStr = "down"
+	}
+
+	jsonJSON(w, 200, map[string]any{
+		"message":  "vote recorded",
+		"karma":    newKarma,
+		"userVote": userVoteStr,
+	})
 }
 func (s *server) updateComment(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)

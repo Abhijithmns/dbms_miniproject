@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BookIcon,
   CardViewIcon,
@@ -15,16 +15,49 @@ import {
   StarIcon,
 } from "@/components/Icons";
 import { PostRow } from "@/components/PostRow";
-import { POSTS, SERIES } from "@/data/posts";
+import { apiPostToPost, POSTS, SERIES, type ApiPost, type Post, type Series } from "@/data/posts";
+import { apiRequest } from "@/lib/api";
 
 export function RedditHomeFeed() {
   const [tab, setTab] = useState<"for-you" | "following" | "hot" | "new" | "top">("for-you");
+  const [posts, setPosts] = useState<Post[]>(POSTS);
+  const [subreddits, setSubreddits] = useState<Series[]>(SERIES);
   const [starred, setStarred] = useState<Record<string, boolean>>({
     dbms: true,
     "campus-life": false,
     "programming-help": true,
+    dbms_dml_demo: true,
   });
-  const [recentPosts, setRecentPosts] = useState(POSTS.slice(0, 5));
+  const [recentPosts, setRecentPosts] = useState<Post[]>(POSTS.slice(0, 5));
+
+  useEffect(() => {
+    // Load live posts from MariaDB backend
+    apiRequest<ApiPost[]>("/api/posts")
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const live = data.map(apiPostToPost);
+          setPosts(live);
+          setRecentPosts(live.slice(0, 5));
+        }
+      })
+      .catch(() => undefined);
+
+    // Load live subreddits from MariaDB backend
+    apiRequest<Array<{ id: number; name: string; description: string }>>("/api/subgetits")
+      .then((subs) => {
+        if (Array.isArray(subs) && subs.length > 0) {
+          setSubreddits(
+            subs.map((s) => ({
+              id: s.id,
+              slug: s.name,
+              name: s.name,
+              description: s.description,
+            }))
+          );
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   function toggleStar(slug: string, e: React.MouseEvent) {
     e.preventDefault();
@@ -37,10 +70,10 @@ export function RedditHomeFeed() {
   }
 
   // Filter or sort posts depending on selected tab
-  const displayPosts = [...POSTS].sort((a, b) => {
-    if (tab === "top") return (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes);
-    if (tab === "new") return new Date(b.date).getTime() - new Date(a.date).getTime();
-    if (tab === "hot") return (b.upvotes + b.comments) - (a.upvotes + a.comments);
+  const displayPosts = [...posts].sort((a, b) => {
+    if (tab === "top") return (b.karma ?? b.upvotes - b.downvotes) - (a.karma ?? a.upvotes - a.downvotes);
+    if (tab === "new") return (b.id ?? 0) - (a.id ?? 0);
+    if (tab === "hot") return ((b.karma ?? b.upvotes) + b.comments) - ((a.karma ?? a.upvotes) + a.comments);
     return 0; // Default for-you / following order
   });
 
@@ -116,7 +149,7 @@ export function RedditHomeFeed() {
           </Link>
 
           <ul className="mt-2 space-y-1">
-            {SERIES.map((subgetit) => {
+            {subreddits.map((subgetit) => {
               const isFav = starred[subgetit.slug];
               const initial = subgetit.name[0]?.toUpperCase() ?? "G";
               return (
@@ -224,7 +257,7 @@ export function RedditHomeFeed() {
         {/* Post Feed */}
         <ol className="space-y-3" aria-label="getit posts">
           {displayPosts.map((post) => (
-            <PostRow key={post.slug} post={post} />
+            <PostRow key={post.id || post.slug} post={post} />
           ))}
         </ol>
       </main>
@@ -254,8 +287,8 @@ export function RedditHomeFeed() {
             <div className="divide-y divide-line">
               {recentPosts.map((post) => (
                 <Link
-                  key={post.slug}
-                  href={`/post?post=${post.slug}`}
+                  key={post.id || post.slug}
+                  href={`/post?post=${post.id || post.slug}`}
                   className="reddit-recent-item group"
                 >
                   <div className="min-w-0 flex-1">
@@ -275,7 +308,7 @@ export function RedditHomeFeed() {
                     </p>
 
                     <div className="mt-1 text-[0.68rem] text-muted">
-                      {post.upvotes} upvotes • {post.comments} comments
+                      {post.karma ?? post.upvotes} karma • {post.comments} comments
                     </div>
                   </div>
 

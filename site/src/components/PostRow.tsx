@@ -12,6 +12,7 @@ import {
   ShareIcon,
 } from "@/components/Icons";
 import { toast } from "@/components/Toast";
+import { apiRequest } from "@/lib/api";
 import { copyText } from "@/lib/clipboard";
 import type { ReactNode } from "react";
 import { seriesName, tagHref, type Post } from "@/data/posts";
@@ -65,10 +66,10 @@ export function highlight(text: string, terms: string[] = []): ReactNode {
 
 /** One post in a list (latest posts, archive, tags, search). `terms` are highlighted (search). */
 export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
-  const [vote, setVote] = useState<"up" | "down" | null>(null);
-  const [counts, setCounts] = useState({ up: post.upvotes, down: post.downvotes });
-  const [joined, setJoined] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [vote, setVote] = useState<"up" | "down" | null>(post.userVote ?? null);
+  const [score, setScore] = useState(post.karma ?? post.upvotes - post.downvotes);
+  const [joined, setJoined] = useState(post.joined ?? false);
+  const [saved, setSaved] = useState(post.saved ?? false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -83,38 +84,73 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
 
-  function setUserVote(next: "up" | "down") {
-    if (vote === next) {
-      setVote(null);
-      setCounts((current) => ({ ...current, [next]: current[next] - 1 }));
-      return;
+  async function setUserVote(next: "up" | "down") {
+    const isCancel = vote === next;
+    const nextVote = isCancel ? "remove" : next;
+    const prevVote = vote;
+    const prevScore = score;
+    const prevDelta = prevVote === "up" ? 1 : prevVote === "down" ? -1 : 0;
+    const newDelta = nextVote === "up" ? 1 : nextVote === "down" ? -1 : 0;
+    const delta = newDelta - prevDelta;
+    setVote(isCancel ? null : next);
+    setScore(prevScore + delta);
+
+    try {
+      const postId = post.id || post.slug;
+      const res = await apiRequest<{ message: string; karma: number; userVote: string }>(
+        `/api/posts/${postId}/vote`,
+        {
+          method: "POST",
+          body: JSON.stringify({ vote: nextVote }),
+        }
+      );
+      if (typeof res.karma === "number") {
+        setScore(res.karma);
+        setVote(res.userVote === "up" ? "up" : res.userVote === "down" ? "down" : null);
+      }
+    } catch {
+      setVote(prevVote);
+      setScore(prevScore);
+      toast("Please log in to vote on posts");
     }
-    setCounts((current) => ({
-      up: current.up + (next === "up" ? 1 : 0) - (vote === "up" ? 1 : 0),
-      down: current.down + (next === "down" ? 1 : 0) - (vote === "down" ? 1 : 0),
-    }));
-    setVote(next);
   }
 
   function handleShare(e?: React.MouseEvent) {
     if (e) e.stopPropagation();
-    const url = `${window.location.origin}/post?post=${post.slug}`;
+    const postId = post.id || post.slug;
+    const url = `${window.location.origin}/post?post=${postId}`;
     copyText(url, () => toast("Post link copied to clipboard!"));
     setMenuOpen(false);
   }
 
-  function toggleSave() {
-    setSaved((s) => {
-      const next = !s;
-      toast(next ? "Post saved to your profile" : "Post unsaved");
-      return next;
-    });
+  async function toggleSave() {
+    const next = !saved;
+    setSaved(next);
     setMenuOpen(false);
+    toast(next ? "Post saved to your profile" : "Post unsaved");
+    try {
+      const postId = post.id || post.slug;
+      await apiRequest(`/api/redis/saved-posts/${postId}`, {
+        method: next ? "POST" : "DELETE",
+      });
+    } catch {}
+  }
+
+  async function toggleJoin() {
+    const next = !joined;
+    setJoined(next);
+    const commName = seriesName(post.series) || "getit";
+    toast(next ? `Joined g/${commName}` : `Left g/${commName}`);
+    try {
+      const targetSub = post.subredditId || post.series;
+      await apiRequest(`/api/subgetits/${targetSub}/join`, {
+        method: next ? "POST" : "DELETE",
+      });
+    } catch {}
   }
 
   const community = seriesName(post.series) || "getit";
   const communityInitial = community[0]?.toUpperCase() ?? "G";
-  const score = counts.up - counts.down;
 
   return (
     <li className="reddit-post-card">
@@ -132,17 +168,14 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
           </Link>
           <span className="text-muted">•</span>
           <span className="text-muted truncate">{post.date}</span>
-          <span className="text-muted hidden sm:inline">• u/getit_demo</span>
+          <span className="text-muted hidden sm:inline">• u/{post.author || "getit_demo"}</span>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0 relative" ref={menuRef}>
           <button
             type="button"
             className={`reddit-join-btn ${joined ? "is-joined" : ""}`}
-            onClick={() => {
-              setJoined((j) => !j);
-              toast(!joined ? `Joined g/${community}` : `Left g/${community}`);
-            }}
+            onClick={() => void toggleJoin()}
           >
             {joined ? "Joined" : "Join"}
           </button>
@@ -189,7 +222,7 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
 
       {/* Post Title & Tags */}
       <h3 className="text-base sm:text-lg font-bold mt-2 mb-1 leading-snug">
-        <Link href={`/post?post=${post.slug}`} className="hover:text-pen text-ink">
+        <Link href={`/post?post=${post.id || post.slug}`} className="hover:text-pen text-ink">
           {highlight(post.title, terms)}
         </Link>
       </h3>
@@ -240,7 +273,7 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
 
         {/* Comment Pill */}
         <Link
-          href={`/post?post=${post.slug}#comments`}
+          href={`/post?post=${post.id || post.slug}#comments`}
           className="reddit-pill-btn"
           aria-label={`${post.comments} comments`}
         >
@@ -250,7 +283,7 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
 
         {/* Award Pill */}
         <Link
-          href={`/post?post=${post.slug}#comments`}
+          href={`/post?post=${post.id || post.slug}#comments`}
           className="reddit-pill-btn"
           title="Give award"
         >

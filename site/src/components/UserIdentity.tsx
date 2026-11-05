@@ -19,15 +19,6 @@ import { apiRequest } from "@/lib/api";
 import { THEME_KEY } from "@/lib/theme";
 
 export const USER_STORAGE_KEY = "getit-demo-user";
-const ADJECTIVES = ["curious", "sleepy", "clever", "cosmic", "quiet", "brave", "pixel", "friendly"];
-const NOUNS = ["otter", "owl", "badger", "raccoon", "fox", "penguin", "panda", "koala"];
-
-function randomUsername() {
-  const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-  const number = Math.floor(100 + Math.random() * 900);
-  return `${adjective}_${noun}_${number}`;
-}
 
 function subscribeTheme(onChange: () => void) {
   const observer = new MutationObserver(onChange);
@@ -54,17 +45,27 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
     () => null,
   );
 
-  // Fetch API session user
+  // Fetch API session user or auto-login demo
   useEffect(() => {
-    void apiRequest<{ id: number; username: string; role: string }>("/api/auth/me")
+    apiRequest<{ id: number; username: string; role: string }>("/api/auth/me")
       .then((user) => {
         setApiUser(user);
-        if (!localUsername) {
-          window.localStorage.setItem(USER_STORAGE_KEY, user.username);
-        }
+        window.localStorage.setItem(USER_STORAGE_KEY, user.username);
+        notify();
       })
-      .catch(() => setApiUser(null));
-  }, [localUsername]);
+      .catch(() => {
+        apiRequest<{ id: number; username: string; role: string }>("/api/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ username: "getit_demo", password: "demo-password" }),
+        })
+          .then((user) => {
+            setApiUser(user);
+            window.localStorage.setItem(USER_STORAGE_KEY, user.username);
+            notify();
+          })
+          .catch(() => setApiUser(null));
+      });
+  }, []);
 
   // Click outside listener
   useEffect(() => {
@@ -94,11 +95,25 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
     window.dispatchEvent(new StorageEvent("storage", { key: USER_STORAGE_KEY }));
   }
 
-  function login(preferredName?: string) {
-    const next = preferredName ?? localUsername ?? randomUsername();
-    window.localStorage.setItem(USER_STORAGE_KEY, next);
-    notify();
-    toast(`Logged in as u/${next}`);
+  async function login(preferredName?: string) {
+    const next = preferredName ?? "getit_demo";
+    try {
+      const user = await apiRequest<{ id: number; username: string; role: string }>(
+        "/api/auth/login",
+        {
+          method: "POST",
+          body: JSON.stringify({ username: next, password: "demo-password" }),
+        }
+      );
+      setApiUser(user);
+      window.localStorage.setItem(USER_STORAGE_KEY, user.username);
+      notify();
+      toast(`Logged in as u/${user.username}`);
+    } catch {
+      window.localStorage.setItem(USER_STORAGE_KEY, next);
+      notify();
+      toast(`Logged in as u/${next}`);
+    }
     setOpen(false);
   }
 

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { CommentsSection } from "@/components/CommentsSection";
 import {
   ArrowDownIcon,
@@ -15,75 +15,312 @@ import {
 } from "@/components/Icons";
 import { PostManagement } from "@/components/PostManagement";
 import { toast } from "@/components/Toast";
-import { POSTS, seriesName } from "@/data/posts";
+import { POSTS, SERIES, seriesName, type Post } from "@/data/posts";
+import { apiRequest } from "@/lib/api";
 import { copyText } from "@/lib/clipboard";
 
-const bodies: Record<string, string[]> = {
-  "best-way-to-learn-sql": [
-    "There is a point where learning SQL stops being about memorising syntax and starts being about asking a better question.",
-    "Describe the result in plain language first: which rows do you need, how are they related, and what should happen when there is no match?",
-  ],
-  "quiet-place-to-study": [
-    "The library is usually the safest choice, but the best place depends on when you study. Check the smaller reading rooms early and look for a reliable power socket.",
-  ],
-  "redis-vs-mysql": [
-    "Redis is useful when the same small piece of data must be read quickly, while MySQL remains the source of truth for related records and durable relationships.",
-    "A saved-post list, session, or short-lived cache is a good example of the split.",
-  ],
-  "debugging-null-values": [
-    "NULL is not zero and it is not an empty string. It means that a value is unknown or missing, so SQL uses three-valued logic when comparing it.",
-  ],
-  "group-project-survival": [
-    "Give every task one owner and one reviewer. Keep a small shared board with the status, deadline, and a link to the result.",
-  ],
-  "show-your-side-project": [
-    "Share the problem, the smallest useful demo, and one thing you learned. Small projects are easier for other people to understand and respond to.",
-  ],
-  "normalisation-clicked": [
-    "Normalisation clicked when I treated each table as one kind of fact. A row should have one clear owner, and repeated facts should have one place to change.",
-  ],
-  "free-food-near-campus": [
-    "The most useful recommendations include the price, opening time, and what to order. A short, specific answer helps more than a list of names.",
-  ],
+type ApiPostDetail = {
+  id: number;
+  postId: number;
+  slug: string;
+  title: string;
+  body: string;
+  excerpt: string;
+  flair: string;
+  authorId: number;
+  author: string;
+  subredditId: number;
+  subgetit: string;
+  createdAt: string;
+  karma: number;
+  comments: number;
+  userVote: string;
+  saved: boolean;
+  joined: boolean;
 };
 
 export function PostPageContent() {
+  const router = useRouter();
   const params = useSearchParams();
-  const post = POSTS.find((item) => item.slug === params.get("post")) ?? POSTS[0];
+  const postParam = params.get("post");
+  const isCreate = !postParam || params.get("create") === "true";
 
+  // Create Post state
+  const [createCommunity, setCreateCommunity] = useState<number>(2); // Default to campus-life
+  const [createTitle, setCreateTitle] = useState("");
+  const [createBody, setCreateBody] = useState("");
+  const [createFlair, setCreateFlair] = useState("advice");
+  const [submitting, setSubmitting] = useState(false);
+  const [communities, setCommunities] = useState(SERIES);
+
+  // Post Detail state
+  const fallbackPost = POSTS.find((item) => String(item.id) === postParam || item.slug === postParam) ?? POSTS[0];
+  const [post, setPost] = useState<Post>(fallbackPost);
   const [vote, setVote] = useState<"up" | "down" | null>(null);
-  const [counts, setCounts] = useState({ up: post.upvotes, down: post.downvotes });
+  const [score, setScore] = useState<number>(fallbackPost.karma ?? 0);
   const [joined, setJoined] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  function setUserVote(next: "up" | "down") {
-    if (vote === next) {
-      setVote(null);
-      setCounts((current) => ({ ...current, [next]: current[next] - 1 }));
+  // Fetch communities for Create Post
+  useEffect(() => {
+    apiRequest<Array<{ id: number; name: string; description: string }>>("/api/subgetits")
+      .then((items) => {
+        if (Array.isArray(items) && items.length > 0) {
+          setCommunities(
+            items.map((i) => ({
+              id: i.id,
+              slug: i.name,
+              name: i.name,
+              description: i.description,
+            }))
+          );
+          if (items[0]?.id) {
+            setCreateCommunity(items[0].id);
+          }
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  // Fetch live post details
+  useEffect(() => {
+    if (!postParam) return;
+    apiRequest<ApiPostDetail>(`/api/posts/${postParam}/details`)
+      .then((data) => {
+        const flairList = data.flair
+          ? data.flair.split(",").map((s) => s.trim()).filter(Boolean)
+          : [];
+        const loaded: Post = {
+          id: data.id,
+          slug: String(data.id),
+          title: data.title,
+          excerpt: data.body || data.excerpt || "",
+          body: data.body || "",
+          date: data.createdAt ? new Date(data.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "Recently",
+          tags: flairList.length > 0 ? flairList : ["general"],
+          series: data.subgetit,
+          subgetit: data.subgetit,
+          subredditId: data.subredditId,
+          author: data.author,
+          comments: data.comments ?? 0,
+          upvotes: data.karma ?? 0,
+          downvotes: 0,
+          karma: data.karma ?? 0,
+          userVote: data.userVote === "up" ? "up" : data.userVote === "down" ? "down" : null,
+          saved: data.saved,
+          joined: data.joined,
+          href: `/post?post=${data.id}`,
+        };
+        setPost(loaded);
+        setScore(loaded.karma ?? 0);
+        setVote(loaded.userVote ?? null);
+        setJoined(!!loaded.joined);
+        setSaved(!!loaded.saved);
+      })
+      .catch(() => undefined);
+  }, [postParam]);
+
+  // Handle post creation
+  async function handleCreatePost(e: React.FormEvent) {
+    e.preventDefault();
+    if (!createTitle.trim()) {
+      toast("Please enter a title for your post");
       return;
     }
-    setCounts((current) => ({
-      up: current.up + (next === "up" ? 1 : 0) - (vote === "up" ? 1 : 0),
-      down: current.down + (next === "down" ? 1 : 0) - (vote === "down" ? 1 : 0),
-    }));
-    setVote(next);
+    setSubmitting(true);
+    try {
+      const res = await apiRequest<{ postId: number }>("/api/posts", {
+        method: "POST",
+        body: JSON.stringify({
+          title: createTitle.trim(),
+          body: createBody.trim(),
+          flair: createFlair.trim(),
+          subredditId: createCommunity,
+        }),
+      });
+      toast("Post created successfully!");
+      router.push(`/post?post=${res.postId}`);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to create post. Please check login.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Handle voting on post
+  async function setUserVote(next: "up" | "down") {
+    const isCancel = vote === next;
+    const nextVote = isCancel ? "remove" : next;
+    const prevVote = vote;
+    const prevScore = score;
+    const prevDelta = prevVote === "up" ? 1 : prevVote === "down" ? -1 : 0;
+    const newDelta = nextVote === "up" ? 1 : nextVote === "down" ? -1 : 0;
+    const delta = newDelta - prevDelta;
+    setVote(isCancel ? null : next);
+    setScore(prevScore + delta);
+
+    try {
+      const postId = post.id || postParam || post.slug;
+      const res = await apiRequest<{ message: string; karma: number; userVote: string }>(
+        `/api/posts/${postId}/vote`,
+        {
+          method: "POST",
+          body: JSON.stringify({ vote: nextVote }),
+        }
+      );
+      if (typeof res.karma === "number") {
+        setScore(res.karma);
+        setVote(res.userVote === "up" ? "up" : res.userVote === "down" ? "down" : null);
+      }
+    } catch {
+      setVote(prevVote);
+      setScore(prevScore);
+      toast("Please log in to vote on posts");
+    }
   }
 
   function handleShare() {
     copyText(window.location.href, () => toast("Post link copied to clipboard!"));
   }
 
-  function toggleSave() {
-    setSaved((s) => {
-      const next = !s;
-      toast(next ? "Post saved to your profile" : "Post unsaved");
-      return next;
-    });
+  async function toggleSave() {
+    const next = !saved;
+    setSaved(next);
+    toast(next ? "Post saved to your profile" : "Post unsaved");
+    try {
+      const postId = post.id || postParam || post.slug;
+      await apiRequest(`/api/redis/saved-posts/${postId}`, {
+        method: next ? "POST" : "DELETE",
+      });
+    } catch {}
   }
 
+  async function toggleJoin() {
+    const next = !joined;
+    setJoined(next);
+    const commName = seriesName(post.series) || "getit";
+    toast(next ? `Joined g/${commName}` : `Left g/${commName}`);
+    try {
+      const targetSub = post.subredditId || post.series;
+      await apiRequest(`/api/subgetits/${targetSub}/join`, {
+        method: next ? "POST" : "DELETE",
+      });
+    } catch {}
+  }
+
+  // ---------------- CREATE POST VIEW ----------------
+  if (isCreate) {
+    return (
+      <div className="max-w-[780px] mx-auto border border-line rounded-xl bg-surface p-4 sm:p-6 shadow-sm">
+        <div className="border-b border-line pb-4 mb-5">
+          <h1 className="text-xl sm:text-2xl font-bold text-ink">Create a post</h1>
+          <p className="text-xs text-muted mt-1">
+            Share knowledge, ask questions, or start a discussion in the getit community.
+          </p>
+        </div>
+
+        <form onSubmit={handleCreatePost} className="space-y-4">
+          {/* Subreddit / Community Select */}
+          <div>
+            <label className="block text-xs font-bold text-ink uppercase tracking-wider mb-1.5">
+              Choose a community
+            </label>
+            <select
+              value={createCommunity}
+              onChange={(e) => setCreateCommunity(Number(e.target.value))}
+              className="input w-full max-w-sm font-semibold"
+            >
+              {communities.map((c) => (
+                <option key={c.slug} value={c.id ?? 1}>
+                  g/{c.name} {c.description ? `— ${c.description}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className="block text-xs font-bold text-ink uppercase tracking-wider mb-1.5">
+              Title *
+            </label>
+            <input
+              type="text"
+              required
+              maxLength={300}
+              placeholder="Title of your post"
+              value={createTitle}
+              onChange={(e) => setCreateTitle(e.target.value)}
+              className="input w-full text-base font-semibold"
+            />
+          </div>
+
+          {/* Flair Picker */}
+          <div>
+            <label className="block text-xs font-bold text-ink uppercase tracking-wider mb-1.5">
+              Post Flair
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {["advice", "recommendations", "explainers", "showcase", "sql", "general"].map(
+                (flair) => (
+                  <button
+                    key={flair}
+                    type="button"
+                    onClick={() => setCreateFlair(flair)}
+                    className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                      createFlair === flair
+                        ? "bg-pen text-white border-pen font-bold"
+                        : "bg-surface border-line text-muted hover:text-ink"
+                    }`}
+                  >
+                    #{flair}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* Body */}
+          <div>
+            <label className="block text-xs font-bold text-ink uppercase tracking-wider mb-1.5">
+              Body text
+            </label>
+            <textarea
+              rows={6}
+              placeholder="Write the details of your post..."
+              value={createBody}
+              onChange={(e) => setCreateBody(e.target.value)}
+              className="input w-full leading-relaxed"
+            />
+          </div>
+
+          {/* Submit Actions */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-line">
+            <Link
+              href="/"
+              className="reddit-pill-btn !h-9 text-xs font-bold"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="reddit-join-btn !h-9 !px-6 text-xs font-bold disabled:opacity-50"
+            >
+              {submitting ? "Posting…" : "Post"}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // ---------------- VIEW POST DETAIL ----------------
   const community = seriesName(post.series) || "getit";
   const communityInitial = community[0]?.toUpperCase() ?? "G";
-  const score = counts.up - counts.down;
+  const bodyParagraphs = (post.body || post.excerpt)
+    .split("\n\n")
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   return (
     <article className="max-w-[840px] mx-auto border border-line rounded-xl bg-surface p-4 sm:p-6 shadow-sm">
@@ -101,17 +338,14 @@ export function PostPageContent() {
           </Link>
           <span className="text-muted">•</span>
           <span className="text-xs text-muted truncate">{post.date}</span>
-          <span className="text-xs text-muted hidden sm:inline">• posted by u/getit_demo</span>
+          <span className="text-xs text-muted hidden sm:inline">• posted by u/{post.author || "getit_demo"}</span>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             className={`reddit-join-btn ${joined ? "is-joined" : ""}`}
-            onClick={() => {
-              setJoined((j) => !j);
-              toast(!joined ? `Joined g/${community}` : `Left g/${community}`);
-            }}
+            onClick={() => void toggleJoin()}
           >
             {joined ? "Joined" : "Join"}
           </button>
@@ -139,11 +373,15 @@ export function PostPageContent() {
 
       {/* Post Body Content */}
       <div className="prose-nb py-2 leading-relaxed text-ink/90 text-base sm:text-lg">
-        {(bodies[post.slug] ?? [post.excerpt]).map((paragraph) => (
-          <p key={paragraph} className="mb-4">
-            {paragraph}
-          </p>
-        ))}
+        {bodyParagraphs.length > 0 ? (
+          bodyParagraphs.map((paragraph, idx) => (
+            <p key={idx} className="mb-4">
+              {paragraph}
+            </p>
+          ))
+        ) : (
+          <p className="mb-4">{post.excerpt}</p>
+        )}
       </div>
 
       {/* Reddit Action Bar: [ ↑ score ↓ ] [ 💬 count ] [ 🏆 Award ] [ ➦ Share ] [ ✎ / 🗑 ] */}
@@ -155,7 +393,7 @@ export function PostPageContent() {
             className={`reddit-vote-arrow ${vote === "up" ? "is-up" : ""}`}
             aria-label="Upvote"
             aria-pressed={vote === "up"}
-            onClick={() => setUserVote("up")}
+            onClick={() => void setUserVote("up")}
           >
             <ArrowUpIcon size={16} />
           </button>
@@ -171,7 +409,7 @@ export function PostPageContent() {
             className={`reddit-vote-arrow ${vote === "down" ? "is-down" : ""}`}
             aria-label="Downvote"
             aria-pressed={vote === "down"}
-            onClick={() => setUserVote("down")}
+            onClick={() => void setUserVote("down")}
           >
             <ArrowDownIcon size={16} />
           </button>
@@ -199,7 +437,7 @@ export function PostPageContent() {
         <button
           type="button"
           className={`reddit-pill-btn ${saved ? "text-pen" : ""}`}
-          onClick={toggleSave}
+          onClick={() => void toggleSave()}
           title={saved ? "Saved" : "Save"}
           aria-label="Bookmark"
         >
@@ -207,11 +445,15 @@ export function PostPageContent() {
         </button>
 
         {/* Owner Controls */}
-        <PostManagement slug={post.slug} initialTitle={post.title} initialBody={post.excerpt} />
+        <PostManagement
+          slug={String(post.id || postParam || post.slug)}
+          initialTitle={post.title}
+          initialBody={post.body || post.excerpt}
+        />
       </div>
 
       {/* Comments Section */}
-      <CommentsSection postSlug={post.slug} count={post.comments} />
+      <CommentsSection postSlug={String(post.id || postParam || post.slug)} count={post.comments} />
     </article>
   );
 }
