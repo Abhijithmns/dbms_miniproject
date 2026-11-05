@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowDownIcon, ArrowUpIcon, CommentIcon } from "@/components/Icons";
 import { AwardsPanel } from "@/components/AwardsPanel";
 import { USER_STORAGE_KEY } from "@/components/UserIdentity";
@@ -24,8 +24,8 @@ function CommentItem({ comment, postSlug, currentUser, reload }: { comment: Comm
 
 export function CommentsSection({ postSlug, count }: { postSlug: string; count: number }) {
   const router = useRouter(); const [comments, setComments] = useState<Comment[]>([]); const [body, setBody] = useState(""); const [currentUser, setCurrentUser] = useState<string | null>(null); const [displayCount, setDisplayCount] = useState(count);
-  function load() { void apiRequest<ApiComment[]>(`/api/posts/${postSlug}/comments`).then((items) => { const mapped = items.map((item) => ({ ...item, age: new Date(item.createdAt).toLocaleString() })); setComments(mapped); setDisplayCount(mapped.length); }).catch(() => undefined); }
-  useEffect(() => { load(); void apiRequest<{ username: string }>("/api/auth/me").then((user) => setCurrentUser(user.username)).catch(() => setCurrentUser(null)); }, [postSlug]);
+  const load = useCallback(() => { void apiRequest<ApiComment[]>(`/api/posts/${postSlug}/comments`).then((items) => { const mapped = items.map((item) => ({ ...item, age: new Date(item.createdAt).toLocaleString() })); setComments(mapped); setDisplayCount(mapped.length); }).catch(() => undefined); }, [postSlug]);
+  useEffect(() => { load(); void apiRequest<{ username: string }>("/api/auth/me").then((user) => setCurrentUser(user.username)).catch(() => setCurrentUser(null)); }, [load]);
   function submit(event: React.FormEvent) { event.preventDefault(); if (!body.trim()) return; if (!window.localStorage.getItem(USER_STORAGE_KEY)) { router.push("/subscribe"); return; } void apiRequest(`/api/posts/${postSlug}/comments`, { method: "POST", body: JSON.stringify({ body }) }).then(() => { setBody(""); load(); }).catch(() => undefined); }
   return <section className="mt-12 border-t-2 border-ink pt-8" id="comments" aria-labelledby="comments-title"><div className="flex items-center justify-between gap-3"><h2 id="comments-title" className="display text-xl font-bold">Comments</h2><span className="post-meta">{displayCount} comments</span></div><form className="mt-5" onSubmit={submit}><textarea className="input min-h-28 resize-y" placeholder="What do you think?" value={body} onChange={(e) => setBody(e.target.value)}/><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">{currentUser ? `Commenting as u/${currentUser}.` : "Log in to comment with your getit username."}</p><div className="flex gap-2">{!currentUser && <Link href="/subscribe" className="btn-ghost">Log in</Link>}<button className="btn">Comment</button></div></div></form><ol className="mt-8 space-y-6">{comments.filter((comment) => !comment.parentCommentId).map((comment) => <CommentItem key={comment.id} comment={comment} postSlug={postSlug} currentUser={currentUser} reload={load}/>)}</ol></section>;
 }

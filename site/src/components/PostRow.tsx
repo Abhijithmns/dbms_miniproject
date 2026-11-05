@@ -76,7 +76,7 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
       <time dateTime={post.date}>{post.date}</time>
       <div className="min-w-0">
         <h3 className="post-title">
-          <Link href={post.href}>{highlight(post.title, terms)}</Link>
+          <Link href={`/post?post=${post.slug}`}>{highlight(post.title, terms)}</Link>
         </h3>
         <p className="mt-1 text-muted">{highlight(post.excerpt, terms)}</p>
         <p className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -92,7 +92,7 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
           <button type="button" className={`vote-btn ${vote === "down" ? "is-down" : ""}`} aria-label="Downvote" aria-pressed={vote === "down"} onClick={() => setUserVote("down")}>
             <ArrowDownIcon /> {counts.down}
           </button>
-          <Link href="/post#comments" className="comment-btn">
+          <Link href={`/post?post=${post.slug}#comments`} className="comment-btn">
             <CommentIcon /> {post.comments} comments
           </Link>
         </div>

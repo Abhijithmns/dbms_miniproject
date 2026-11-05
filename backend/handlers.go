@@ -47,6 +47,16 @@ func (s *server) createPost(w http.ResponseWriter, r *http.Request) {
 	id, _ := res.LastInsertId()
 	jsonJSON(w, 201, map[string]any{"postId": id})
 }
+func (s *server) postDetails(w http.ResponseWriter, r *http.Request) {
+	id := s.postID(r.Context(), r.PathValue("slug"))
+	var title string
+	var owner int64
+	if err := s.db.QueryRowContext(r.Context(), "SELECT title,user_id FROM post WHERE post_id=?", id).Scan(&title, &owner); err != nil {
+		errorJSON(w, 404, "post not found")
+		return
+	}
+	jsonJSON(w, 200, map[string]any{"postId": id, "title": title, "authorId": owner})
+}
 func (s *server) updatePost(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)
 	if !ok {
@@ -129,11 +139,12 @@ func (s *server) comments(w http.ResponseWriter, r *http.Request) {
 	out := []map[string]any{}
 	for rows.Next() {
 		var cid, pid, karma int64
-		var author, image, body string
+		var author, body string
+		var image sql.NullString
 		var parent sql.NullInt64
 		var created time.Time
 		if rows.Scan(&cid, &pid, &author, &image, &body, &karma, &parent, &created) == nil {
-			out = append(out, map[string]any{"id": cid, "postId": pid, "author": author, "profileImage": image, "body": body, "score": karma, "parentCommentId": parent.Int64, "createdAt": created})
+			out = append(out, map[string]any{"id": cid, "postId": pid, "author": author, "profileImage": image.String, "body": body, "score": karma, "parentCommentId": parent.Int64, "createdAt": created})
 		}
 	}
 	jsonJSON(w, 200, out)
@@ -231,13 +242,14 @@ func (s *server) deleteComment(w http.ResponseWriter, r *http.Request) {
 }
 func (s *server) profile(w http.ResponseWriter, r *http.Request) {
 	var id, karma int64
-	var name, image string
+	var name string
+	var image sql.NullString
 	var joined time.Time
 	if err := s.db.QueryRow("SELECT user_id,username,profile_image,karma,joined_at FROM app_user WHERE username=?", r.PathValue("username")).Scan(&id, &name, &image, &karma, &joined); err != nil {
 		errorJSON(w, 404, "user not found")
 		return
 	}
-	jsonJSON(w, 200, map[string]any{"userId": id, "username": name, "profileImage": image, "karma": karma, "joinedAt": joined})
+	jsonJSON(w, 200, map[string]any{"userId": id, "username": name, "profileImage": image.String, "karma": karma, "joinedAt": joined})
 }
 func (s *server) updateProfile(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)
@@ -348,11 +360,12 @@ func (s *server) messages(w http.ResponseWriter, r *http.Request) {
 	out := []map[string]any{}
 	for rows.Next() {
 		var id, sender, receiver int64
-		var content, sn, rn, si, ri string
+		var content, sn, rn string
+		var si, ri sql.NullString
 		var sent time.Time
 		var read sql.NullTime
 		if rows.Scan(&id, &content, &sent, &read, &sender, &receiver, &sn, &rn, &si, &ri) == nil {
-			out = append(out, map[string]any{"messageId": id, "content": content, "sentAt": sent, "readAt": read, "senderId": sender, "receiverId": receiver, "senderUsername": sn, "receiverUsername": rn, "senderProfileImage": si, "receiverProfileImage": ri})
+			out = append(out, map[string]any{"messageId": id, "content": content, "sentAt": sent, "readAt": read, "senderId": sender, "receiverId": receiver, "senderUsername": sn, "receiverUsername": rn, "senderProfileImage": si.String, "receiverProfileImage": ri.String})
 		}
 	}
 	jsonJSON(w, 200, out)
