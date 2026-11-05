@@ -325,6 +325,237 @@
   .prose-nb .callout { padding: 1rem 1.15rem; border-radius: 6px; border: 1px solid var(--line); border-left: 4px solid var(--pen); background: var(--surface); font-size: 1rem; line-height: 1.65; }
   .prose-nb .callout-note { border-left-color: var(--marker); }
   .prose-nb figure figcaption { margin-top: .6rem; font-size: .88rem; color: var(--muted); }
+
+  /* ============================================================ */
+  /* Reddit Modern UI Layout & Component Styling                 */
+  /* ============================================================ */
+  .reddit-search-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    height: 2.5rem;
+    padding: 0 1rem;
+    border-radius: 9999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 0.88rem;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .reddit-search-pill:hover, .reddit-search-pill:focus-within {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+
+  .reddit-create-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    height: 2.35rem;
+    padding: 0 0.95rem;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    transition: background-color .2s, border-color .2s;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .reddit-create-btn:hover {
+    background: var(--line);
+  }
+
+  .reddit-header-logo {
+    display: inline-grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 9999px;
+    background: #ff4500;
+    color: white;
+  }
+  .reddit-logo-dot {
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 9999px;
+    background: white;
+  }
+
+  /* Reddit Modern Post Card */
+  .reddit-post-card {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 0.85rem 1rem 0.95rem;
+    box-shadow: 0 1px 2px rgb(0 0 0 / .04);
+    transition: border-color .2s;
+  }
+  .reddit-post-card:hover {
+    border-color: #878a8c;
+  }
+  .reddit-post-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+  }
+  .reddit-community-avatar {
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #ff4500 0%, #ff8717 100%);
+    color: white;
+    font-weight: 700;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+  }
+  .reddit-join-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.85rem;
+    padding: 0 0.85rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: var(--ink);
+    color: var(--paper);
+    transition: opacity .2s, transform .1s;
+    cursor: pointer;
+  }
+  .reddit-join-btn:hover {
+    opacity: 0.9;
+  }
+  .reddit-join-btn.is-joined {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .reddit-more-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 9999px;
+    color: var(--muted);
+    transition: background-color .2s, color .2s;
+    cursor: pointer;
+  }
+  .reddit-more-btn:hover {
+    background: var(--line);
+    color: var(--ink);
+  }
+
+  /* Reddit Pill Buttons (Actions Bar) */
+  .reddit-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .reddit-vote-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    overflow: hidden;
+  }
+  .reddit-vote-arrow {
+    display: inline-grid;
+    place-items: center;
+    padding: 0.35rem 0.55rem;
+    cursor: pointer;
+    transition: color .2s, background-color .2s;
+  }
+  .reddit-vote-arrow:hover {
+    background: var(--line);
+    color: var(--ink);
+  }
+  .reddit-vote-arrow.is-up {
+    color: #ff4500;
+    background: var(--pen-soft);
+  }
+  .reddit-vote-arrow.is-down {
+    color: #7193ff;
+    background: rgb(113 147 255 / 0.15);
+  }
+  .reddit-vote-count {
+    padding: 0 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--ink);
+    min-width: 1.5rem;
+    text-align: center;
+  }
+  .reddit-vote-count.is-up {
+    color: #ff4500;
+  }
+  .reddit-vote-count.is-down {
+    color: #7193ff;
+  }
+
+  .reddit-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 2rem;
+    padding: 0 0.75rem;
+    border-radius: 9999px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color .2s, color .2s, border-color .2s;
+  }
+  .reddit-pill-btn:hover {
+    background: var(--line);
+    color: var(--ink);
+  }
+
+  .reddit-flair {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 9999px;
+    background: var(--line);
+    color: var(--ink);
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  /* Recent Posts Sidebar Card */
+  .reddit-recent-posts {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .reddit-recent-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    transition: background-color .2s;
+  }
+  .reddit-recent-item:hover {
+    background: var(--paper);
+  }
 }
 
 /* Back to top button (src/components/BackToTop.tsx). Remove this block and the component to drop it. */

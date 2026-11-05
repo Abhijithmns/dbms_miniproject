@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type SVGProps } from "react";
-import { SearchIcon } from "@/components/Icons";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { AdIcon, BellIcon, ChatIcon, PlusIcon, SearchIcon } from "@/components/Icons";
 import { UserIdentity } from "@/components/UserIdentity";
 import { NAV } from "@/data/site";
 
@@ -46,39 +45,14 @@ export function SiteHeader() {
   const current = (href: string) => (href === pathname ? ("page" as const) : undefined);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur-md">
-      <div className="wrap flex h-16 items-center gap-6">
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <span className="getit-logo-text" aria-label="getit">getit</span>
-        </Link>
-        <nav aria-label="Main" className="hidden lg:block">
-          <ul className="flex items-center gap-1 font-display text-[.82rem] font-medium text-muted [font-stretch:87.5%]">
-            {NAV.map((item) => (
-              <li key={item.href}>
-                <Link className="nav-link" href={item.href} aria-current={current(item.href)}>
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="ml-auto flex items-center gap-1">
-          <Link
-            href="/search"
-            className="inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-md px-2 text-muted transition-colors hover:bg-line hover:text-ink sm:px-2.5"
-            data-search-link=""
-            aria-label="Search (press /)"
-          >
-            <SearchIcon />
-            <span className="hidden text-sm font-bold text-ink sm:inline">Search</span>
-            <kbd className="hidden sm:inline">/</kbd>
-          </Link>
-          <ThemeToggle />
-          <UserIdentity />
+    <header className="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur-md">
+      <div className="w-full max-w-[1400px] mx-auto px-3 sm:px-6 flex h-14 items-center justify-between gap-2 sm:gap-4">
+        {/* Left: Mobile Toggle & Reddit Logo */}
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <button
             ref={toggleRef}
             type="button"
-            className="icon-btn lg:hidden"
+            className="icon-btn !w-9 !h-9 lg:hidden rounded-full"
             data-menu-toggle=""
             aria-controls="mobile-menu"
             aria-expanded={open}
@@ -89,12 +63,12 @@ export function SiteHeader() {
               aria-hidden="true"
               data-menu-icon="open"
               {...svgHidden(open)}
-              width="22"
-              height="22"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.8"
+              strokeWidth="2"
               strokeLinecap="round"
             >
               <path d="M4 7h16M4 12h16M4 17h16" />
@@ -103,26 +77,89 @@ export function SiteHeader() {
               aria-hidden="true"
               data-menu-icon="close"
               {...svgHidden(!open)}
-              width="22"
-              height="22"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.8"
+              strokeWidth="2"
               strokeLinecap="round"
             >
               <path d="M6 6l12 12M18 6 6 18" />
             </svg>
           </button>
+
+          <Link href="/" className="flex items-center gap-2">
+            <span className="reddit-header-logo" aria-hidden="true">
+              <span className="reddit-logo-dot" />
+            </span>
+            <span className="getit-logo-text !text-2xl" aria-label="getit">getit</span>
+          </Link>
+        </div>
+
+        {/* Center: Reddit-style wide pill search bar */}
+        <div className="flex-1 max-w-2xl mx-1 sm:mx-4">
+          <Link
+            href="/search"
+            className="reddit-search-pill"
+            data-search-link=""
+            aria-label="Search getit"
+          >
+            <SearchIcon size={17} />
+            <span className="flex-1 text-sm text-muted truncate">Search getit</span>
+            <kbd className="hidden sm:inline-block">/</kbd>
+          </Link>
+        </div>
+
+        {/* Right: AD, Messages, + Create, Notifications, Profile Dropdown */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Link
+            href="/about"
+            className="icon-btn !w-9 !h-9 rounded-full text-muted hover:text-ink hover:bg-line hidden md:inline-grid"
+            title="About & Announcements"
+            aria-label="Announcements"
+          >
+            <AdIcon size={18} />
+          </Link>
+
+          <Link
+            href="/messages"
+            className="icon-btn !w-9 !h-9 rounded-full text-muted hover:text-ink hover:bg-line"
+            title="Inbox & Messages"
+            aria-label="Messages"
+          >
+            <ChatIcon size={18} />
+          </Link>
+
+          <Link
+            href="/post"
+            className="reddit-create-btn"
+            title="Create Post"
+          >
+            <PlusIcon size={16} />
+            <span className="hidden sm:inline">Create</span>
+          </Link>
+
+          <button
+            type="button"
+            className="icon-btn !w-9 !h-9 rounded-full text-muted hover:text-ink hover:bg-line hidden sm:inline-grid"
+            title="Notifications"
+            aria-label="Notifications"
+          >
+            <BellIcon size={18} />
+          </button>
+
+          <UserIdentity />
         </div>
       </div>
+
       <div id="mobile-menu" className="border-t border-line bg-paper lg:hidden" hidden={!open}>
         <nav aria-label="Mobile" className="wrap pb-8 pt-2">
           <ul>
             {NAV.map((item) => (
               <li key={item.href}>
                 <Link
-                  className="display block border-b border-dashed border-line py-4 text-xl font-semibold"
+                  className="display block border-b border-dashed border-line py-3 text-lg font-semibold"
                   href={item.href}
                   aria-current={current(item.href)}
                   onClick={() => setOpen(false)}
@@ -132,9 +169,6 @@ export function SiteHeader() {
               </li>
             ))}
           </ul>
-          <Link href="/subscribe" className="btn mt-6 w-full" onClick={() => setOpen(false)}>
-            Log in
-          </Link>
         </nav>
       </div>
     </header>

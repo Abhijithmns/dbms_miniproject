@@ -7,8 +7,6 @@ export type Post = {
   date: string;
   tags: string[];
   series: string;
-  part: number;
-  minutes: number;
   comments: number;
   upvotes: number;
   downvotes: number;
@@ -31,8 +29,6 @@ export const POSTS: Post[] = [
     date: "2026-10-26",
     tags: ["sql", "learning", "advice"],
     series: "dbms",
-    part: 1,
-    minutes: 3,
     comments: 28,
     upvotes: 184,
     downvotes: 7,
@@ -45,8 +41,6 @@ export const POSTS: Post[] = [
     date: "2026-10-25",
     tags: ["campus", "recommendations"],
     series: "campus-life",
-    part: 1,
-    minutes: 2,
     comments: 41,
     upvotes: 231,
     downvotes: 3,
@@ -59,8 +53,6 @@ export const POSTS: Post[] = [
     date: "2026-10-24",
     tags: ["redis", "mysql", "architecture"],
     series: "dbms",
-    part: 2,
-    minutes: 5,
     comments: 19,
     upvotes: 146,
     downvotes: 4,
@@ -73,8 +65,6 @@ export const POSTS: Post[] = [
     date: "2026-10-23",
     tags: ["sql", "debugging", "explainers"],
     series: "programming-help",
-    part: 1,
-    minutes: 4,
     comments: 12,
     upvotes: 98,
     downvotes: 2,
@@ -87,8 +77,6 @@ export const POSTS: Post[] = [
     date: "2026-10-22",
     tags: ["campus", "advice", "projects"],
     series: "campus-life",
-    part: 2,
-    minutes: 3,
     comments: 34,
     upvotes: 175,
     downvotes: 8,
@@ -101,8 +89,6 @@ export const POSTS: Post[] = [
     date: "2026-10-21",
     tags: ["projects", "showcase", "community"],
     series: "programming-help",
-    part: 2,
-    minutes: 2,
     comments: 52,
     upvotes: 263,
     downvotes: 5,
@@ -115,8 +101,6 @@ export const POSTS: Post[] = [
     date: "2026-10-20",
     tags: ["databases", "learning", "questions"],
     series: "dbms",
-    part: 3,
-    minutes: 4,
     comments: 23,
     upvotes: 121,
     downvotes: 6,
@@ -129,8 +113,6 @@ export const POSTS: Post[] = [
     date: "2026-10-19",
     tags: ["campus", "food", "recommendations"],
     series: "campus-life",
-    part: 3,
-    minutes: 2,
     comments: 67,
     upvotes: 309,
     downvotes: 9,
@@ -139,8 +121,7 @@ export const POSTS: Post[] = [
 ];
 
 export const seriesName = (slug: string) => SERIES.find((s) => s.slug === slug)?.name ?? "";
-export const partsOf = (slug: string) => POSTS.filter((p) => p.series === slug).sort((a, b) => a.part - b.part);
-export const minutesOf = (slug: string) => partsOf(slug).reduce((n, p) => n + p.minutes, 0);
+export const partsOf = (slug: string) => POSTS.filter((p) => p.series === slug);
 
 export function tagCounts(): [string, number][] {
   const counts = new Map<string, number>();

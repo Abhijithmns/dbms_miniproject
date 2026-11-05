@@ -183,6 +183,11 @@ func (s *server) votePost(w http.ResponseWriter, r *http.Request) {
 		_, _ = s.db.Exec("DELETE FROM votes_on WHERE user_id=? AND post_id=?", u.ID, id)
 	} else {
 		_, _ = s.db.Exec("INSERT INTO votes_on(user_id,post_id,vote_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE vote_type=VALUES(vote_type)", u.ID, id, map[bool]string{true: "downvote", false: "upvote"}[vote == "down"])
+		delta := 1
+		if vote == "down" {
+			delta = -1
+		}
+		_, _ = s.db.ExecContext(r.Context(), "UPDATE post SET karma=karma+? WHERE post_id=?", delta, id)
 	}
 	jsonJSON(w, 200, map[string]string{"message": "vote recorded"})
 }
@@ -199,6 +204,11 @@ func (s *server) voteComment(w http.ResponseWriter, r *http.Request) {
 		_, _ = s.db.Exec("DELETE FROM comment_votes WHERE comment_id=? AND user_id=?", id, u.ID)
 	} else {
 		_, _ = s.db.Exec("INSERT INTO comment_votes(comment_id,user_id,vote_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE vote_type=VALUES(vote_type)", id, u.ID, map[bool]string{true: "downvote", false: "upvote"}[q["vote"] == "down"])
+		delta := 1
+		if q["vote"] == "down" {
+			delta = -1
+		}
+		_, _ = s.db.ExecContext(r.Context(), "UPDATE comment SET karma=karma+? WHERE comment_id=?", delta, id)
 	}
 	jsonJSON(w, 200, map[string]string{"message": "vote recorded"})
 }

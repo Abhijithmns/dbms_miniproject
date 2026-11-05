@@ -9,5 +9,59 @@ export function PostManagement({ slug, initialTitle, initialBody }: { slug: stri
   if (!id || !allowed) return null;
   async function save(event: React.FormEvent) { event.preventDefault(); try { await apiRequest(`/api/posts/${id}`, { method: "PUT", body: JSON.stringify({ title, body }) }); setEditing(false); router.refresh(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not update post"); } }
   async function remove() { try { await apiRequest(`/api/posts/${id}`, { method: "DELETE" }); router.push("/"); } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not delete post"); } }
-  return <div className="mt-6 flex flex-wrap gap-2"><button className="btn-ghost" onClick={() => setEditing(!editing)}>Edit post</button><button className="btn-ghost" onClick={() => setConfirmDelete(!confirmDelete)}>Delete post</button>{confirmDelete && <div className="delete-confirm" role="alert">Delete this post? <button className="comment-btn delete-confirm-yes" onClick={() => void remove()}>Delete</button><button className="comment-btn" onClick={() => setConfirmDelete(false)}>Cancel</button></div>}{editing && <form className="sheet basis-full grid gap-3 p-4" onSubmit={save}><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} required /><textarea className="input" value={body} onChange={(e) => setBody(e.target.value)} required /><button className="btn justify-self-start">Save changes</button></form>}{error && <p className="w-full text-sm text-pen">{error}</p>}</div>;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        className="reddit-pill-btn"
+        onClick={() => setEditing(!editing)}
+      >
+        ✎ Edit post
+      </button>
+      <button
+        type="button"
+        className="reddit-pill-btn text-pen"
+        onClick={() => setConfirmDelete(!confirmDelete)}
+      >
+        🗑 Delete post
+      </button>
+      {confirmDelete && (
+        <div className="delete-confirm basis-full mt-2" role="alert">
+          Delete this post?{" "}
+          <button
+            type="button"
+            className="reddit-pill-btn !bg-pen !text-white !h-7 !text-xs ml-2"
+            onClick={() => void remove()}
+          >
+            Confirm Delete
+          </button>
+          <button
+            type="button"
+            className="reddit-pill-btn !h-7 !text-xs ml-1"
+            onClick={() => setConfirmDelete(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {editing && (
+        <form className="sheet basis-full grid gap-3 p-4 mt-3" onSubmit={save}>
+          <input
+            className="input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+          <textarea
+            className="input"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            required
+          />
+          <button className="btn justify-self-start !py-2 !text-xs">Save changes</button>
+        </form>
+      )}
+      {error && <p className="w-full text-sm text-pen mt-1">{error}</p>}
+    </div>
+  );
 }

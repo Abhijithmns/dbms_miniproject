@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRightIcon } from "@/components/Icons";
-import { SERIES, minutesOf, pad2, partsOf } from "@/data/posts";
+import { SERIES, pad2, partsOf } from "@/data/posts";
 import { pageMetadata } from "@/lib/metadata";
 import { SubgetitActions } from "@/components/SubgetitActions";
 
@@ -38,7 +38,7 @@ export default function SeriesPage() {
                 </h2>
                 <p className="mt-3 text-lg text-muted">{s.description}</p>
                 <p className="mt-5 font-mono text-sm text-muted">
-                  {parts.length} posts · {minutesOf(s.slug)} min of reading
+                  {parts.length} posts
                 </p>
                 <Link href={parts[0].href} className="btn mt-6">
                   Visit subgetit <ArrowRightIcon />
@@ -46,16 +46,16 @@ export default function SeriesPage() {
                 <SubgetitActions name={s.name} />
               </div>
               <ol className="divide-y divide-dashed divide-line border-y border-dashed border-line">
-                {parts.map((p) => (
+                {parts.map((p, index) => (
                   <li key={p.slug} className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3 py-4">
-                    <span className="font-mono text-lg font-semibold text-pen">{pad2(p.part)}</span>
+                    <span className="font-mono text-lg font-semibold text-pen">{pad2(index + 1)}</span>
                     <div>
                       <h3 className="post-title">
                         <Link href={p.href}>{p.title}</Link>
                       </h3>
                       <p className="mt-1 text-muted">{p.excerpt}</p>
                       <p className="mt-2 font-mono text-xs text-muted">
-                        <time dateTime={p.date}>{p.date}</time> · {p.minutes} min
+                        <time dateTime={p.date}>{p.date}</time> · {p.upvotes - p.downvotes} karma · {p.comments} comments
                       </p>
                     </div>
                   </li>

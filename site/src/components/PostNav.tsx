@@ -22,18 +22,18 @@ export function SeriesNav({ slug }: { slug: string }) {
             {parts.length} posts in this subgetit.
           </p>
           <ol className="mt-4 space-y-2 border-t border-dashed border-line pt-4">
-            {parts.map((x) =>
+            {parts.map((x, idx) =>
               x.slug === post.slug ? (
                 <li key={x.slug}>
                   <Link href={x.href} aria-current="page" className="font-bold">
-                    <span className="font-mono text-pen">{pad2(x.part)}</span>{" "}
+                    <span className="font-mono text-pen">{pad2(idx + 1)}</span>{" "}
                     <span className="marker">{x.title}</span>
                   </Link>
                 </li>
               ) : (
                 <li key={x.slug}>
                   <Link href={x.href} className="hover:text-pen">
-                    <span className="font-mono text-pen">{pad2(x.part)}</span> {x.title}
+                    <span className="font-mono text-pen">{pad2(idx + 1)}</span> {x.title}
                   </Link>
                 </li>
               ),
