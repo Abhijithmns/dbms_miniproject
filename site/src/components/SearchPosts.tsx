@@ -1,14 +1,12 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useRef, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SearchIcon } from "@/components/Icons";
 import { PostRow, TagLink } from "@/components/PostRow";
-import { POSTS, plural, seriesName } from "@/data/posts";
+import { apiPostToPost, POSTS, plural, seriesName, type ApiPost, type Post } from "@/data/posts";
+import { apiRequest } from "@/lib/api";
 import { asset } from "@/lib/asset";
-
-/** What a post is searched by: title, summary, topics and subgetit name, in lower case. */
-const HAYSTACKS = POSTS.map((p) => [p.title, p.excerpt, p.tags.join(" "), seriesName(p.series)].join(" ").toLowerCase());
 
 /**
  * Search as you type. Every word typed must appear in a post's title, summary, topics or subgetit;
@@ -16,11 +14,27 @@ const HAYSTACKS = POSTS.map((p) => [p.title, p.excerpt, p.tags.join(" "), series
  * page to come here (src/components/SearchShortcut.tsx).
  */
 function SearchView({ initial }: { initial: string }) {
+  const [posts, setPosts] = useState<Post[]>(POSTS);
   const [value, setValue] = useState(initial);
   const inputRef = useRef<HTMLInputElement>(null);
   const query = value.trim();
   const terms = useMemo(() => query.toLowerCase().split(/\s+/).filter(Boolean).slice(0, 8), [query]);
-  const list = POSTS.filter((_, i) => terms.every((t) => HAYSTACKS[i].includes(t)));
+
+  useEffect(() => {
+    apiRequest<ApiPost[]>("/api/posts")
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setPosts(data.map(apiPostToPost));
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const haystacks = useMemo(() => {
+    return posts.map((p) => [p.title, p.excerpt, p.tags.join(" "), seriesName(p.series)].join(" ").toLowerCase());
+  }, [posts]);
+
+  const list = posts.filter((_, i) => terms.every((t) => haystacks[i]?.includes(t)));
 
   function update(next: string) {
     setValue(next);

@@ -1,7 +1,9 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { USER_STORAGE_KEY, UserIdentity } from "@/components/UserIdentity";
+import { toast } from "@/components/Toast";
+import { apiRequest } from "@/lib/api";
 
 const AVATARS = ["🦊", "🐼", "🦉", "🐸", "🐙", "🐝", "🐨", "🦄"];
 const AVATAR_KEY = "getit-demo-avatar";
@@ -19,9 +21,34 @@ export function ProfileEditor() {
   const username = useSyncExternalStore(subscribe, () => window.localStorage.getItem(USER_STORAGE_KEY), () => null);
   const avatarIndex = useSyncExternalStore(subscribe, () => window.localStorage.getItem(AVATAR_KEY) ?? "0", () => "0");
 
-  function chooseAvatar(index: number) {
+  useEffect(() => {
+    if (!username) return;
+    apiRequest<{ profileImage?: string }>(`/api/profile/${username}`)
+      .then((data) => {
+        if (data.profileImage) {
+          const idx = AVATARS.indexOf(data.profileImage);
+          if (idx !== -1) {
+            window.localStorage.setItem(AVATAR_KEY, String(idx));
+            notify();
+          }
+        }
+      })
+      .catch(() => undefined);
+  }, [username]);
+
+  async function chooseAvatar(index: number) {
     window.localStorage.setItem(AVATAR_KEY, String(index));
     notify();
+    const chosen = AVATARS[index % AVATARS.length];
+    if (username) {
+      try {
+        await apiRequest(`/api/profile/${username}`, {
+          method: "PUT",
+          body: JSON.stringify({ ProfileImage: chosen }),
+        });
+        toast("Profile avatar saved to database");
+      } catch {}
+    }
   }
 
   return (
@@ -34,10 +61,10 @@ export function ProfileEditor() {
       <div className="sheet p-6 sm:p-8">
         <p className="kicker">profile picture</p>
         <h2 className="display mt-3 text-2xl font-bold">Choose your look</h2>
-        <p className="mt-2 text-muted">Pick an avatar for your getit profile. It is saved only in this browser.</p>
+        <p className="mt-2 text-muted">Pick an avatar for your getit profile. It is persisted to your MariaDB account.</p>
         <div className="mt-7 grid grid-cols-4 gap-3 sm:grid-cols-8">
           {AVATARS.map((avatar, index) => (
-            <button key={avatar} type="button" className={`avatar-choice ${Number(avatarIndex) === index ? "avatar-choice-active" : ""}`} aria-label={`Choose ${avatar} avatar`} aria-pressed={Number(avatarIndex) === index} onClick={() => chooseAvatar(index)}>
+            <button key={avatar} type="button" className={`avatar-choice ${Number(avatarIndex) === index ? "avatar-choice-active" : ""}`} aria-label={`Choose ${avatar} avatar`} aria-pressed={Number(avatarIndex) === index} onClick={() => void chooseAvatar(index)}>
               {avatar}
             </button>
           ))}

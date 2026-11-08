@@ -1,11 +1,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { PostRow } from "@/components/PostRow";
-import { POSTS, plural, tagCounts } from "@/data/posts";
-
-const TAGS = tagCounts();
+import { apiPostToPost, POSTS, plural, type ApiPost, type Post } from "@/data/posts";
+import { apiRequest } from "@/lib/api";
 
 /**
  * The topic browser: "All" plus one toggle button per topic (most used first). The chosen topic lives in
@@ -13,16 +12,37 @@ const TAGS = tagCounts();
  * value that isn't a tag shows every post and a short notice.
  */
 function TagBrowserView({ requested }: { requested: string | null }) {
+  const [posts, setPosts] = useState<Post[]>(POSTS);
+
+  useEffect(() => {
+    apiRequest<ApiPost[]>("/api/posts")
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setPosts(data.map(apiPostToPost));
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const tags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of posts) {
+      for (const t of p.tags) {
+        counts.set(t, (counts.get(t) ?? 0) + 1);
+      }
+    }
+    return Array.from(counts).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+  }, [posts]);
+
   const wanted = (requested ?? "").trim();
-  const current = wanted ? (TAGS.find(([t]) => t.toLowerCase() === wanted.toLowerCase())?.[0] ?? "") : "";
+  const current = wanted ? (tags.find(([t]) => t.toLowerCase() === wanted.toLowerCase())?.[0] ?? "") : "";
   const unknown = wanted !== "" && !current;
-  const list = POSTS.filter((p) => !current || p.tags.includes(current));
+  const list = posts.filter((p) => !current || p.tags.includes(current));
 
   function choose(tag: string) {
     const url = new URL(window.location.href);
     if (tag) url.searchParams.set("tag", tag);
     else url.searchParams.delete("tag");
-    // Next.js keeps useSearchParams() in step with replaceState.
     window.history.replaceState(null, "", url);
   }
 
@@ -30,9 +50,9 @@ function TagBrowserView({ requested }: { requested: string | null }) {
     <>
       <div className="mt-10 flex flex-wrap gap-2" role="group" aria-label="Filter by tag" data-tag-filter="">
         <button type="button" className="tag no-hash" data-tag="" aria-pressed={!current} onClick={() => choose("")}>
-          All<span className="count">{POSTS.length}</span>
+          All<span className="count">{posts.length}</span>
         </button>
-        {TAGS.map(([t, n]) => (
+        {tags.map(([t, n]) => (
           <button
             key={t}
             type="button"
