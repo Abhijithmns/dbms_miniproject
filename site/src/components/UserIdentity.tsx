@@ -30,8 +30,8 @@ const isDarkTheme = () => typeof document !== "undefined" && document.documentEl
 export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
   const [open, setOpen] = useState(false);
   const [apiUser, setApiUser] = useState<{ id: number; username: string; role: string } | null>(null);
+  const [karma, setKarma] = useState<number>(0);
   const isDark = useSyncExternalStore(subscribeTheme, isDarkTheme, () => false);
-  const karma = 184;
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -47,11 +47,17 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
 
   // Fetch API session user or auto-login demo
   useEffect(() => {
+    const fetchKarma = (username: string) => {
+      apiRequest<{ karma: number }>(`/api/profile/${username}`)
+        .then((p) => setKarma(p.karma))
+        .catch(() => {});
+    };
     apiRequest<{ id: number; username: string; role: string }>("/api/auth/me")
       .then((user) => {
         setApiUser(user);
         window.localStorage.setItem(USER_STORAGE_KEY, user.username);
         notify();
+        fetchKarma(user.username);
       })
       .catch(() => {
         apiRequest<{ id: number; username: string; role: string }>("/api/auth/login", {
@@ -62,6 +68,7 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
             setApiUser(user);
             window.localStorage.setItem(USER_STORAGE_KEY, user.username);
             notify();
+            fetchKarma(user.username);
           })
           .catch(() => setApiUser(null));
       });
@@ -109,6 +116,9 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
       window.localStorage.setItem(USER_STORAGE_KEY, user.username);
       notify();
       toast(`Logged in as u/${user.username}`);
+      apiRequest<{ karma: number }>(`/api/profile/${user.username}`)
+        .then((p) => setKarma(p.karma))
+        .catch(() => {});
     } catch {
       window.localStorage.setItem(USER_STORAGE_KEY, next);
       notify();
@@ -122,6 +132,7 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
       await apiRequest("/api/auth/logout", { method: "POST" });
     } catch {}
     setApiUser(null);
+    setKarma(0);
     window.localStorage.removeItem(USER_STORAGE_KEY);
     notify();
     toast("Logged out");
