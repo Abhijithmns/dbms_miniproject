@@ -31,11 +31,17 @@ function CommentItem({
   postSlug,
   currentUser,
   reload,
+  replies = [],
+  depth = 0,
+  allComments = [],
 }: {
   comment: Comment;
   postSlug: string;
   currentUser: string | null;
   reload: () => void;
+  replies?: Comment[];
+  depth?: number;
+  allComments?: Comment[];
 }) {
   const [score, setScore] = useState(comment.score);
   const [vote, setVote] = useState<"up" | "down" | null>(null);
@@ -190,15 +196,42 @@ function CommentItem({
           </div>
         )}
         {replying && (
-          <form className="mt-3 flex gap-2" onSubmit={submitReply}>
-            <input
-              className="input"
-              placeholder="Write a reply"
+          <form className="mt-3 flex flex-col gap-2" onSubmit={submitReply}>
+            <textarea
+              className="input min-h-20 resize-y w-full text-sm"
+              placeholder={`Reply to u/${comment.author}…`}
               value={reply}
               onChange={(e) => setReply(e.target.value)}
+              autoFocus
             />
-            <button className="btn">Reply</button>
+            <div className="flex gap-2">
+              <button className="reddit-join-btn !h-8 !px-4 text-xs font-bold">Reply</button>
+              <button
+                type="button"
+                className="btn-ghost !text-xs !py-1.5"
+                onClick={() => { setReplying(false); setReply(""); }}
+              >
+                Cancel
+              </button>
+            </div>
           </form>
+        )}
+        {/* Nested replies */}
+        {replies.length > 0 && (
+          <ol className={`mt-3 space-y-3 border-l-2 border-line pl-4 ${depth >= 4 ? "pl-2" : ""}`}>
+            {replies.map((rep) => (
+              <CommentItem
+                key={rep.id}
+                comment={rep}
+                postSlug={postSlug}
+                currentUser={currentUser}
+                reload={reload}
+                replies={allComments.filter((c) => c.parentCommentId === rep.id)}
+                depth={depth + 1}
+                allComments={allComments}
+              />
+            ))}
+          </ol>
         )}
       </div>
     </li>
@@ -307,6 +340,9 @@ export function CommentsSection({ postSlug, count }: { postSlug: string; count: 
               postSlug={postSlug}
               currentUser={currentUser}
               reload={load}
+              replies={comments.filter((c) => c.parentCommentId === comment.id)}
+              depth={0}
+              allComments={comments}
             />
           ))}
       </ol>

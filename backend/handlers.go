@@ -270,7 +270,11 @@ func (s *server) comments(w http.ResponseWriter, r *http.Request) {
 		var parent sql.NullInt64
 		var created time.Time
 		if rows.Scan(&cid, &pid, &author, &image, &body, &karma, &parent, &created) == nil {
-			out = append(out, map[string]any{"id": cid, "postId": pid, "author": author, "profileImage": image.String, "body": body, "score": karma, "parentCommentId": parent.Int64, "createdAt": created})
+			var parentVal any
+			if parent.Valid {
+				parentVal = parent.Int64
+			}
+			out = append(out, map[string]any{"id": cid, "postId": pid, "author": author, "profileImage": image.String, "body": body, "score": karma, "parentCommentId": parentVal, "createdAt": created})
 		}
 	}
 	jsonJSON(w, 200, out)
