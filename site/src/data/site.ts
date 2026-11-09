@@ -43,7 +43,7 @@ export const FOOTER: { title: string; links: NavLink[] }[] = [
   {
     title: "resources",
     links: [
-      { href: "/subscribe", label: "Log in" },
+      { href: "/login", label: "Log in" },
       { href: "https://github.com/", label: "GitHub" },
       { href: `mailto:${site.email}`, label: "Email the team" },
     ],

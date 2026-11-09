@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowDownIcon, ArrowUpIcon, CommentIcon } from "@/components/Icons";
 import { AwardsPanel } from "@/components/AwardsPanel";
 import { toast } from "@/components/Toast";
 import { apiRequest } from "@/lib/api";
+import { AUTH_CHANGED_EVENT } from "@/components/AuthForm";
+import { openAuthModal } from "@/components/AuthModal";
 
 type ApiComment = {
   id: number;
@@ -90,7 +91,8 @@ function CommentItem({
       setReplying(false);
       reload();
     } catch {
-      toast("Failed to post reply. Please log in.");
+      openAuthModal("login");
+      toast("Please log in to reply");
     }
   }
 
@@ -267,11 +269,28 @@ export function CommentsSection({ postSlug, count }: { postSlug: string; count: 
     void apiRequest<{ username: string }>("/api/auth/me")
       .then((user) => setCurrentUser(user.username))
       .catch(() => setCurrentUser(null));
+
+    const handleAuth = (e: Event) => {
+      const custom = e as CustomEvent<{ username: string } | null>;
+      if (custom.detail) {
+        setCurrentUser(custom.detail.username);
+      } else {
+        setCurrentUser(null);
+      }
+    };
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuth);
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, handleAuth);
   }, [load]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!body.trim()) return;
+
+    if (!currentUser) {
+      openAuthModal("login");
+      toast("Please log in to leave a comment");
+      return;
+    }
 
     try {
       await apiRequest(`/api/posts/${postSlug}/comments`, {
@@ -281,21 +300,8 @@ export function CommentsSection({ postSlug, count }: { postSlug: string; count: 
       setBody("");
       load();
     } catch {
-      // Auto authenticate demo if session is missing
-      try {
-        await apiRequest("/api/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ username: "getit_demo", password: "demo-password" }),
-        });
-        await apiRequest(`/api/posts/${postSlug}/comments`, {
-          method: "POST",
-          body: JSON.stringify({ body: body.trim() }),
-        });
-        setBody("");
-        load();
-      } catch {
-        toast("Please log in to comment");
-      }
+      openAuthModal("login");
+      toast("Please log in to leave a comment");
     }
   }
 
@@ -317,13 +323,17 @@ export function CommentsSection({ postSlug, count }: { postSlug: string; count: 
         />
         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted">
-            {currentUser ? `Commenting as u/${currentUser}` : "Logged in as u/getit_demo"}
+            {currentUser ? `Commenting as u/${currentUser}` : "Log in to join the discussion"}
           </p>
           <div className="flex gap-2">
             {!currentUser && (
-              <Link href="/subscribe" className="btn-ghost !text-xs !py-1.5">
-                Log in
-              </Link>
+              <button
+                type="button"
+                onClick={() => openAuthModal("login")}
+                className="btn-ghost !text-xs !py-1.5"
+              >
+                Log In
+              </button>
             )}
             <button className="reddit-join-btn !h-8 !px-4 text-xs font-bold">Comment</button>
           </div>

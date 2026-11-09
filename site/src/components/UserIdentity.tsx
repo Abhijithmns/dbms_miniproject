@@ -17,6 +17,8 @@ import {
 import { toast } from "@/components/Toast";
 import { apiRequest } from "@/lib/api";
 import { THEME_KEY } from "@/lib/theme";
+import { AUTH_CHANGED_EVENT, notifyAuthChanged } from "@/components/AuthForm";
+import { openAuthModal } from "@/components/AuthModal";
 
 export const USER_STORAGE_KEY = "getit-demo-user";
 
@@ -45,13 +47,18 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
     () => null,
   );
 
-  // Fetch API session user or auto-login demo
+  const fetchKarma = (username: string) => {
+    apiRequest<{ karma: number }>(`/api/profile/${username}`)
+      .then((p) => setKarma(p.karma))
+      .catch(() => {});
+  };
+
+  function notify() {
+    window.dispatchEvent(new StorageEvent("storage", { key: USER_STORAGE_KEY }));
+  }
+
+  // Fetch API session user on load
   useEffect(() => {
-    const fetchKarma = (username: string) => {
-      apiRequest<{ karma: number }>(`/api/profile/${username}`)
-        .then((p) => setKarma(p.karma))
-        .catch(() => {});
-    };
     apiRequest<{ id: number; username: string; role: string }>("/api/auth/me")
       .then((user) => {
         setApiUser(user);
@@ -60,18 +67,23 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
         fetchKarma(user.username);
       })
       .catch(() => {
-        apiRequest<{ id: number; username: string; role: string }>("/api/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ username: "getit_demo", password: "demo-password" }),
-        })
-          .then((user) => {
-            setApiUser(user);
-            window.localStorage.setItem(USER_STORAGE_KEY, user.username);
-            notify();
-            fetchKarma(user.username);
-          })
-          .catch(() => setApiUser(null));
+        setApiUser(null);
+        setKarma(0);
+        window.localStorage.removeItem(USER_STORAGE_KEY);
       });
+
+    const handleAuthChange = (e: Event) => {
+      const custom = e as CustomEvent<{ id: number; username: string; role: string } | null>;
+      if (custom.detail) {
+        setApiUser(custom.detail);
+        fetchKarma(custom.detail.username);
+      } else {
+        setApiUser(null);
+        setKarma(0);
+      }
+    };
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChange);
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChange);
   }, []);
 
   // Click outside listener
@@ -98,10 +110,6 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
     };
   }, [open]);
 
-  function notify() {
-    window.dispatchEvent(new StorageEvent("storage", { key: USER_STORAGE_KEY }));
-  }
-
   async function login(preferredName?: string) {
     const next = preferredName ?? "getit_demo";
     try {
@@ -113,16 +121,12 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
         }
       );
       setApiUser(user);
-      window.localStorage.setItem(USER_STORAGE_KEY, user.username);
-      notify();
+      notifyAuthChanged(user);
       toast(`Logged in as u/${user.username}`);
-      apiRequest<{ karma: number }>(`/api/profile/${user.username}`)
-        .then((p) => setKarma(p.karma))
-        .catch(() => {});
+      fetchKarma(user.username);
     } catch {
-      window.localStorage.setItem(USER_STORAGE_KEY, next);
-      notify();
-      toast(`Logged in as u/${next}`);
+      notifyAuthChanged(null);
+      toast(`Failed to log in as ${next}`);
     }
     setOpen(false);
   }
@@ -133,8 +137,7 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
     } catch {}
     setApiUser(null);
     setKarma(0);
-    window.localStorage.removeItem(USER_STORAGE_KEY);
-    notify();
+    notifyAuthChanged(null);
     toast("Logged out");
     setOpen(false);
   }
@@ -155,8 +158,8 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
       return (
         <button
           type="button"
-          className="reddit-join-btn !h-8 text-xs"
-          onClick={() => login()}
+          className="bg-[#d93a00] hover:bg-[#b83100] text-white px-3.5 py-1.5 rounded-full font-bold text-xs transition-colors cursor-pointer"
+          onClick={() => openAuthModal("login")}
         >
           Log In
         </button>
@@ -333,25 +336,49 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
                 </div>
                 <p className="font-bold text-sm text-ink">Welcome to getit!</p>
                 <p className="text-[0.72rem] text-muted mt-1 leading-snug">
-                  Log in to vote on posts, join subgetits, and leave comments.
+                  Log in to vote on posts, join subgetits, comment, and save topics.
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="mt-2 w-full reddit-join-btn !h-9 text-xs"
-                onClick={() => login("getit_demo")}
-              >
-                Quick Demo Log In
-              </button>
+              <div className="space-y-1.5 mt-2">
+                <button
+                  type="button"
+                  className="w-full bg-[#d93a00] hover:bg-[#b83100] text-white font-bold py-2 px-3 rounded-full text-xs transition-colors cursor-pointer text-center"
+                  onClick={() => {
+                    setOpen(false);
+                    openAuthModal("login");
+                  }}
+                >
+                  Log In
+                </button>
 
-              <Link
-                href="/subscribe"
-                className="mt-2 block w-full text-center py-2 rounded-full border border-line hover:bg-paper text-ink font-bold text-xs transition-colors"
-                onClick={() => setOpen(false)}
-              >
-                Log In / Sign Up
-              </Link>
+                <button
+                  type="button"
+                  className="w-full border border-line hover:bg-paper text-ink font-bold py-2 px-3 rounded-full text-xs transition-colors cursor-pointer text-center"
+                  onClick={() => {
+                    setOpen(false);
+                    openAuthModal("register");
+                  }}
+                >
+                  Sign Up
+                </button>
+
+                <button
+                  type="button"
+                  className="w-full bg-paper hover:bg-line text-muted hover:text-ink font-semibold py-1.5 px-3 rounded-full text-[0.72rem] transition-colors cursor-pointer text-center"
+                  onClick={() => login("getit_demo")}
+                >
+                  Quick Demo: u/getit_demo
+                </button>
+
+                <Link
+                  href="/login"
+                  className="block w-full text-center py-1 text-muted hover:text-ink text-[0.7rem] underline"
+                  onClick={() => setOpen(false)}
+                >
+                  Open dedicated login page →
+                </Link>
+              </div>
 
               <div className="border-t border-line my-2 pt-1">
                 <button

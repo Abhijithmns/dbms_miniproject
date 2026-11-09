@@ -29,7 +29,7 @@ export default function ProjectsPage() {
       </div>
       <div className="mt-12 flex flex-wrap gap-3">
         <Link href="/" className="btn">Go to home</Link>
-        <Link href="/subscribe" className="btn-ghost">Log in</Link>
+        <Link href="/login" className="btn-ghost">Log in</Link>
       </div>
     </section>
   );

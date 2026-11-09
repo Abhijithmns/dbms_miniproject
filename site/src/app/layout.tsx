@@ -6,6 +6,7 @@ import { SearchShortcut } from "@/components/SearchShortcut";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Toast } from "@/components/Toast";
+import { AuthModal } from "@/components/AuthModal";
 import { site } from "@/data/site";
 import { asset } from "@/lib/asset";
 import { themeScript } from "@/lib/theme";
@@ -80,6 +81,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main id="main">{children}</main>
         <SiteFooter />
         <Toast />
+        <AuthModal />
         <RevealObserver />
         <SearchShortcut />
         <BackToTop />

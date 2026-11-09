@@ -14,6 +14,7 @@ import {
 import { toast } from "@/components/Toast";
 import { apiRequest } from "@/lib/api";
 import { copyText } from "@/lib/clipboard";
+import { openAuthModal } from "@/components/AuthModal";
 import type { ReactNode } from "react";
 import { seriesName, tagHref, type Post } from "@/data/posts";
 
@@ -111,6 +112,7 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
     } catch {
       setVote(prevVote);
       setScore(prevScore);
+      openAuthModal("login");
       toast("Please log in to vote on posts");
     }
   }

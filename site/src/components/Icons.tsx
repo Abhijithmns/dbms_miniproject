@@ -208,6 +208,35 @@ export const LogOutIcon = ({ size = 16, className }: P) => (
     <line x1="21" y1="12" x2="9" y2="12" />
   </Icon>
 );
+
+export const CloseIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <path d="M18 6 6 18M6 6l12 12" />
+  </Icon>
+);
+
+export const LockIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </Icon>
+);
+
+export const EyeIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </Icon>
+);
+
+export const EyeOffIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+    <line x1="2" x2="22" y1="2" y2="22" />
+  </Icon>
+);
 export const ShieldIcon = ({ size = 16, className }: P) => (
   <Icon size={size} width={1.8} className={className}>
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />

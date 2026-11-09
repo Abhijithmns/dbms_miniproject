@@ -15,6 +15,7 @@ import {
 } from "@/components/Icons";
 import { PostManagement } from "@/components/PostManagement";
 import { toast } from "@/components/Toast";
+import { openAuthModal } from "@/components/AuthModal";
 import { POSTS, SERIES, seriesName, type Post } from "@/data/posts";
 import { apiRequest } from "@/lib/api";
 import { copyText } from "@/lib/clipboard";
@@ -141,6 +142,7 @@ export function PostPageContent() {
       toast("Post created successfully!");
       router.push(`/post?post=${res.postId}`);
     } catch (err) {
+      openAuthModal("login");
       toast(err instanceof Error ? err.message : "Failed to create post. Please check login.");
     } finally {
       setSubmitting(false);
@@ -175,6 +177,7 @@ export function PostPageContent() {
     } catch {
       setVote(prevVote);
       setScore(prevScore);
+      openAuthModal("login");
       toast("Please log in to vote on posts");
     }
   }

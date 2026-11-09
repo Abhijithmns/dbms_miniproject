@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type SVGProps } from "react";
-import { AdIcon, BellIcon, ChatIcon, PlusIcon, SearchIcon } from "@/components/Icons";
-import { UserIdentity } from "@/components/UserIdentity";
+import { useEffect, useRef, useState, useSyncExternalStore, type SVGProps } from "react";
+import { BellIcon, ChatIcon, PlusIcon, SearchIcon } from "@/components/Icons";
+import { UserIdentity, USER_STORAGE_KEY } from "@/components/UserIdentity";
+import { openAuthModal } from "@/components/AuthModal";
 import { NAV } from "@/data/site";
 
 // React's SVG types have no `hidden`, but the attribute works (and [hidden] is display: none).
@@ -15,6 +16,15 @@ export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
+
+  const user = useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener("storage", onChange);
+      return () => window.removeEventListener("storage", onChange);
+    },
+    () => window.localStorage.getItem(USER_STORAGE_KEY),
+    () => null,
+  );
 
   // Close the menu after navigating.
   const [lastPath, setLastPath] = useState(pathname);
@@ -111,43 +121,46 @@ export function SiteHeader() {
           </Link>
         </div>
 
-        {/* Right: AD, Messages, + Create, Notifications, Profile Dropdown */}
-        <div className="flex items-center gap-1 sm:gap-2">
-          <Link
-            href="/about"
-            className="icon-btn !w-9 !h-9 rounded-full text-muted hover:text-ink hover:bg-line hidden md:inline-grid"
-            title="About & Announcements"
-            aria-label="Announcements"
-          >
-            <AdIcon size={18} />
-          </Link>
+        {/* Right: Actions & User */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {user ? (
+            <>
+              <Link
+                href="/messages"
+                className="icon-btn !w-9 !h-9 rounded-full text-muted hover:text-ink hover:bg-line"
+                title="Inbox & Messages"
+                aria-label="Messages"
+              >
+                <ChatIcon size={18} />
+              </Link>
 
-          <Link
-            href="/messages"
-            className="icon-btn !w-9 !h-9 rounded-full text-muted hover:text-ink hover:bg-line"
-            title="Inbox & Messages"
-            aria-label="Messages"
-          >
-            <ChatIcon size={18} />
-          </Link>
+              <Link
+                href="/post"
+                className="reddit-create-btn"
+                title="Create Post"
+              >
+                <PlusIcon size={16} />
+                <span className="hidden sm:inline">Create</span>
+              </Link>
 
-          <Link
-            href="/post"
-            className="reddit-create-btn"
-            title="Create Post"
-          >
-            <PlusIcon size={16} />
-            <span className="hidden sm:inline">Create</span>
-          </Link>
-
-          <button
-            type="button"
-            className="icon-btn !w-9 !h-9 rounded-full text-muted hover:text-ink hover:bg-line hidden sm:inline-grid"
-            title="Notifications"
-            aria-label="Notifications"
-          >
-            <BellIcon size={18} />
-          </button>
+              <button
+                type="button"
+                className="icon-btn !w-9 !h-9 rounded-full text-muted hover:text-ink hover:bg-line hidden sm:inline-grid"
+                title="Notifications"
+                aria-label="Notifications"
+              >
+                <BellIcon size={18} />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openAuthModal("login")}
+              className="bg-[#d93a00] hover:bg-[#b83100] text-white font-bold px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
+            >
+              Log In
+            </button>
+          )}
 
           <UserIdentity />
         </div>
