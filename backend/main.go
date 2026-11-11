@@ -58,6 +58,7 @@ func main() {
 	mux.HandleFunc("GET /api/messages", s.messages)
 	mux.HandleFunc("POST /api/messages", s.sendMessage)
 	mux.HandleFunc("POST /api/messages/{id}/read", s.readMessage)
+	mux.HandleFunc("GET /api/users", s.usersList)
 	mux.HandleFunc("GET /api/cache/health", s.redisHealth)
 	mux.HandleFunc("GET /api/redis/saved-posts", s.savedPosts)
 	mux.HandleFunc("POST /api/redis/saved-posts/{postId}", s.savePost)

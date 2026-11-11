@@ -1,4 +1,12 @@
 import { MessageCenter } from "@/components/MessageCenter";
 import { pageMetadata } from "@/lib/metadata";
-export const metadata = pageMetadata("Messages", "Private messages on getit.");
-export default function MessagesPage(){return <section className="wrap pt-12 md:pt-16"><p className="kicker">private messages</p><h1 className="display mt-3 text-4xl font-bold">Inbox.</h1><MessageCenter/></section>}
+
+export const metadata = pageMetadata("Chats", "Reddit-style chat and direct messages on getit.");
+
+export default function MessagesPage() {
+  return (
+    <div className="w-full max-w-[1100px] mx-auto px-2 sm:px-4 py-4 md:py-8">
+      <MessageCenter />
+    </div>
+  );
+}

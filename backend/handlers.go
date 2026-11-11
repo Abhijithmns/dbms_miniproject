@@ -700,11 +700,25 @@ func (s *server) sendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var q struct {
-		Content    string
-		ReceiverID int64
+		Content          string `json:"content"`
+		ReceiverID       int64  `json:"receiverId"`
+		ReceiverUsername string `json:"receiverUsername"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&q)
-	res, err := s.db.Exec("INSERT INTO private_message(content,sender_id,receiver_id) VALUES(?,?,?)", q.Content, u.ID, q.ReceiverID)
+	content := clean(q.Content)
+	if content == "" {
+		errorJSON(w, 400, "content cannot be empty")
+		return
+	}
+	receiverID := q.ReceiverID
+	if receiverID == 0 && clean(q.ReceiverUsername) != "" {
+		_ = s.db.QueryRowContext(r.Context(), "SELECT user_id FROM app_user WHERE username=?", clean(q.ReceiverUsername)).Scan(&receiverID)
+	}
+	if receiverID == 0 {
+		errorJSON(w, 400, "valid recipient required")
+		return
+	}
+	res, err := s.db.ExecContext(r.Context(), "INSERT INTO private_message(content,sender_id,receiver_id) VALUES(?,?,?)", content, u.ID, receiverID)
 	if err != nil {
 		errorJSON(w, 400, err.Error())
 		return
@@ -718,7 +732,40 @@ func (s *server) readMessage(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, 401, "login required")
 		return
 	}
-	_, _ = s.db.Exec("UPDATE private_message SET read_at=CURRENT_TIMESTAMP WHERE message_id=? AND receiver_id=?", r.PathValue("id"), u.ID)
+	_, _ = s.db.ExecContext(r.Context(), "UPDATE private_message SET read_at=CURRENT_TIMESTAMP WHERE message_id=? AND receiver_id=?", r.PathValue("id"), u.ID)
 	jsonJSON(w, 200, map[string]string{"message": "marked read"})
+}
+
+func (s *server) usersList(w http.ResponseWriter, r *http.Request) {
+	search := clean(r.URL.Query().Get("q"))
+	query := "SELECT user_id, username, karma, COALESCE(profile_image,'') FROM app_user"
+	var rows *sql.Rows
+	var err error
+	if search != "" {
+		query += " WHERE username LIKE ? ORDER BY karma DESC, username ASC LIMIT 25"
+		rows, err = s.db.QueryContext(r.Context(), query, "%"+search+"%")
+	} else {
+		query += " ORDER BY karma DESC, username ASC LIMIT 30"
+		rows, err = s.db.QueryContext(r.Context(), query)
+	}
+	if err != nil {
+		errorJSON(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+	out := []map[string]any{}
+	for rows.Next() {
+		var id, karma int64
+		var un, pimg string
+		if rows.Scan(&id, &un, &karma, &pimg) == nil {
+			out = append(out, map[string]any{
+				"id":           id,
+				"username":     un,
+				"karma":        karma,
+				"profileImage": pimg,
+			})
+		}
+	}
+	jsonJSON(w, 200, out)
 }
 func contextString(_ string) string { return strings.TrimSpace("") }

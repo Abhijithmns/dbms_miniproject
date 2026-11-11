@@ -312,7 +312,6 @@ export const SnooAvatarIcon = ({ size = 32 }: { size?: number; className?: strin
     aria-hidden="true"
   >
     <circle cx="16" cy="16" r="16" fill="#1e2329" />
-    {/* Snoo antenna */}
     <path
       d="M16 11.5l2.2-4.2 3.2 1.2"
       stroke="#ffffff"
@@ -321,22 +320,102 @@ export const SnooAvatarIcon = ({ size = 32 }: { size?: number; className?: strin
       strokeLinejoin="round"
     />
     <circle cx="22.2" cy="8.6" r="1.6" fill="#ffffff" />
-    {/* Snoo ears */}
     <circle cx="8" cy="15.5" r="2.5" fill="#ffffff" />
     <circle cx="24" cy="15.5" r="2.5" fill="#ffffff" />
-    {/* Snoo head */}
     <ellipse cx="16" cy="16.5" rx="7.5" ry="5.5" fill="#ffffff" />
-    {/* Snoo eyes (Reddit orange red) */}
     <circle cx="13.2" cy="16" r="1.4" fill="#ff4500" />
     <circle cx="18.8" cy="16" r="1.4" fill="#ff4500" />
-    {/* Snoo smile */}
     <path
       d="M14 18.5c1 .9 3 .9 4 0"
       stroke="#1e2329"
       strokeWidth="1.2"
       strokeLinecap="round"
     />
-    {/* Snoo shoulders/body */}
     <path d="M11 23.5c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5v1.5H11v-1.5z" fill="#ffffff" />
+  </svg>
+);
+
+export const SendIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </Icon>
+);
+
+export const SmileIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+    <line x1="9" y1="9" x2="9.01" y2="9" />
+    <line x1="15" y1="9" x2="15.01" y2="9" />
+  </Icon>
+);
+
+export const SlidersIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <line x1="4" y1="21" x2="4" y2="14" />
+    <line x1="4" y1="10" x2="4" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="12" />
+    <line x1="12" y1="8" x2="12" y2="3" />
+    <line x1="20" y1="21" x2="20" y2="16" />
+    <line x1="20" y1="12" x2="20" y2="3" />
+    <line x1="1" y1="14" x2="7" y2="14" />
+    <line x1="9" y1="8" x2="15" y2="8" />
+    <line x1="17" y1="16" x2="23" y2="16" />
+  </Icon>
+);
+
+export const ExternalLinkIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </Icon>
+);
+
+export const MinimizeIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <polyline points="4 14 10 14 10 20" />
+    <polyline points="20 10 14 10 14 4" />
+    <line x1="14" y1="10" x2="21" y2="3" />
+    <line x1="3" y1="21" x2="10" y2="14" />
+  </Icon>
+);
+
+export const ScreamingSnooSticker = ({ size = 120, className = "" }: { size?: number; className?: string }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 160 160"
+    fill="none"
+    className={className}
+    aria-label="Screaming Snoo Sticker"
+  >
+    {/* Snoo antenna */}
+    <line x1="80" y1="36" x2="80" y2="18" stroke="#111" strokeWidth="4" strokeLinecap="round" />
+    <circle cx="80" cy="14" r="7" fill="#ffffff" stroke="#111" strokeWidth="3" />
+    {/* Snoo ears */}
+    <circle cx="34" cy="74" r="14" fill="#ffffff" stroke="#111" strokeWidth="4" />
+    <circle cx="126" cy="74" r="14" fill="#ffffff" stroke="#111" strokeWidth="4" />
+    {/* Snoo head */}
+    <ellipse cx="80" cy="80" rx="48" ry="42" fill="#ffffff" stroke="#111" strokeWidth="4" />
+    {/* Screaming Hands clasping cheeks */}
+    <path
+      d="M36 86 C 28 92, 28 114, 40 120 C 50 126, 62 108, 54 94 Z"
+      fill="#ffffff"
+      stroke="#111"
+      strokeWidth="4"
+    />
+    <path
+      d="M124 86 C 132 92, 132 114, 120 120 C 110 126, 98 108, 106 94 Z"
+      fill="#ffffff"
+      stroke="#111"
+      strokeWidth="4"
+    />
+    {/* Screaming Orange Glowing Eyes */}
+    <ellipse cx="62" cy="74" rx="10" ry="14" fill="#ff4500" stroke="#111" strokeWidth="2.5" />
+    <ellipse cx="98" cy="74" rx="10" ry="14" fill="#ff4500" stroke="#111" strokeWidth="2.5" />
+    {/* Huge Screaming Open Mouth (The Scream / Munch style) */}
+    <ellipse cx="80" cy="100" rx="14" ry="20" fill="#111111" />
   </svg>
 );
