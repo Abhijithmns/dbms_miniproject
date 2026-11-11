@@ -18,11 +18,21 @@ type authUser struct {
 }
 
 func (s *server) currentUser(r *http.Request) (authUser, bool) {
-	c, err := r.Cookie("getit_session")
-	if err != nil {
+	var token string
+	if c, err := r.Cookie("getit_session"); err == nil {
+		token = c.Value
+	}
+	if token == "" {
+		if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+			token = strings.TrimPrefix(auth, "Bearer ")
+		} else if custom := r.Header.Get("X-Session-Token"); custom != "" {
+			token = custom
+		}
+	}
+	if token == "" {
 		return authUser{}, false
 	}
-	p := strings.Split(c.Value, ".")
+	p := strings.Split(token, ".")
 	if len(p) != 2 {
 		return authUser{}, false
 	}
@@ -44,7 +54,7 @@ func (s *server) currentUser(r *http.Request) (authUser, bool) {
 	}
 	return payload.authUser, true
 }
-func setSession(w http.ResponseWriter, user authUser) {
+func setSession(w http.ResponseWriter, user authUser) string {
 	raw, _ := json.Marshal(struct {
 		authUser
 		Exp int64 `json:"exp"`
@@ -52,7 +62,10 @@ func setSession(w http.ResponseWriter, user authUser) {
 	encoded := base64.RawURLEncoding.EncodeToString(raw)
 	mac := hmac.New(sha256.New, []byte(env("SESSION_SECRET", "development-secret")))
 	_, _ = mac.Write([]byte(encoded))
-	http.SetCookie(w, &http.Cookie{Name: "getit_session", Value: encoded + "." + hex.EncodeToString(mac.Sum(nil)), Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 86400})
+	token := encoded + "." + hex.EncodeToString(mac.Sum(nil))
+	http.SetCookie(w, &http.Cookie{Name: "getit_session", Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 86400})
+	w.Header().Set("X-Session-Token", token)
+	return token
 }
 func (s *server) me(w http.ResponseWriter, r *http.Request) {
 	user, ok := s.currentUser(r)
@@ -60,7 +73,8 @@ func (s *server) me(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, 401, "not authenticated")
 		return
 	}
-	jsonJSON(w, 200, user)
+	token := setSession(w, user)
+	jsonJSON(w, 200, map[string]any{"id": user.ID, "username": user.Username, "role": user.Role, "token": token})
 }
 func (s *server) logout(w http.ResponseWriter, _ *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: "getit_session", Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
@@ -79,8 +93,8 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 	}
 	id, _ := result.LastInsertId()
 	user := authUser{ID: id, Username: clean(req.Username), Role: "user"}
-	setSession(w, user)
-	jsonJSON(w, 201, user)
+	token := setSession(w, user)
+	jsonJSON(w, 201, map[string]any{"id": user.ID, "username": user.Username, "role": user.Role, "token": token})
 }
 func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	var req struct{ Username, Password string }
@@ -97,8 +111,8 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	if moderator != nil {
 		user.Role = "moderator"
 	}
-	setSession(w, user)
-	jsonJSON(w, 200, user)
+	token := setSession(w, user)
+	jsonJSON(w, 200, map[string]any{"id": user.ID, "username": user.Username, "role": user.Role, "token": token})
 }
 func hashText(value string) string {
 	sum := sha256.Sum256([]byte(value))
