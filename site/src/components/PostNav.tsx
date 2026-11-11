@@ -14,7 +14,7 @@ export function SeriesNav({ slug }: { slug: string }) {
         <nav className="sheet p-5 sm:p-6" aria-label={`Subgetit: ${name}`}>
           <p className="kicker">subgetit</p>
           <p className="display mt-2 text-lg font-bold">
-            <Link href={`/series#${post.series}`} className="hover:text-pen">
+            <Link href={`/g/${post.series}`} className="hover:text-pen">
               {name}
             </Link>
           </p>

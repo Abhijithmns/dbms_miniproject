@@ -11,15 +11,37 @@ import (
 )
 
 func (s *server) posts(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.db.QueryContext(r.Context(), `
+	subFilter := clean(r.URL.Query().Get("subreddit"))
+	if subFilter == "" {
+		subFilter = clean(r.URL.Query().Get("subgetit"))
+	}
+	sort := clean(r.URL.Query().Get("sort"))
+
+	baseQuery := `
 		SELECT p.post_id, p.title, COALESCE(p.body,''), COALESCE(p.flair,''),
 		       s.name, p.subreddit_id, u.username, p.created_at, p.karma,
 		       (SELECT COUNT(*) FROM comment c WHERE c.post_id=p.post_id)
 		FROM post p
 		JOIN subreddit s ON s.subreddit_id=p.subreddit_id
 		JOIN app_user u ON u.user_id=p.user_id
-		ORDER BY p.created_at DESC
-	`)
+	`
+	orderClause := " ORDER BY p.created_at DESC"
+	if sort == "top" || sort == "best" {
+		orderClause = " ORDER BY p.karma DESC, p.created_at DESC"
+	} else if sort == "hot" {
+		orderClause = " ORDER BY (p.karma + (SELECT COUNT(*) FROM comment c WHERE c.post_id=p.post_id)) DESC, p.created_at DESC"
+	} else if sort == "new" {
+		orderClause = " ORDER BY p.created_at DESC"
+	}
+
+	var rows *sql.Rows
+	var err error
+	if subFilter != "" {
+		subIdVal, _ := strconv.ParseInt(subFilter, 10, 64)
+		rows, err = s.db.QueryContext(r.Context(), baseQuery+" WHERE (s.name = ? OR p.subreddit_id = ?)"+orderClause, subFilter, subIdVal)
+	} else {
+		rows, err = s.db.QueryContext(r.Context(), baseQuery+orderClause)
+	}
 	if err != nil {
 		errorJSON(w, 500, err.Error())
 		return
@@ -497,7 +519,13 @@ func (s *server) updateProfile(w http.ResponseWriter, r *http.Request) {
 	jsonJSON(w, 200, map[string]any{"message": "profile updated", "profileImage": q.ProfileImage})
 }
 func (s *server) subgetits(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.db.Query("SELECT subreddit_id,name,description,created_at FROM subreddit ORDER BY name")
+	rows, err := s.db.QueryContext(r.Context(), `
+		SELECT s.subreddit_id, s.name, COALESCE(s.description, ''), s.created_at,
+		       (SELECT COUNT(*) FROM joins j WHERE j.subreddit_id = s.subreddit_id) AS member_count,
+		       (SELECT COUNT(*) FROM post p WHERE p.subreddit_id = s.subreddit_id) AS post_count
+		FROM subreddit s
+		ORDER BY s.name
+	`)
 	if err != nil {
 		errorJSON(w, 500, err.Error())
 		return
@@ -505,35 +533,103 @@ func (s *server) subgetits(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	out := []map[string]any{}
 	for rows.Next() {
-		var id int64
+		var id, memberCount, postCount int64
 		var name, desc string
 		var created time.Time
-		if rows.Scan(&id, &name, &desc, &created) == nil {
-			out = append(out, map[string]any{"id": id, "name": name, "description": desc, "createdAt": created})
+		if rows.Scan(&id, &name, &desc, &created, &memberCount, &postCount) == nil {
+			out = append(out, map[string]any{
+				"id":          id,
+				"name":        name,
+				"description": desc,
+				"createdAt":   created,
+				"memberCount": memberCount,
+				"postCount":   postCount,
+			})
 		}
 	}
 	jsonJSON(w, 200, out)
 }
+
+func (s *server) subgetitDetails(w http.ResponseWriter, r *http.Request) {
+	target := clean(r.PathValue("name"))
+	var id, memberCount, postCount int64
+	var name, desc string
+	var created time.Time
+	idVal, _ := strconv.ParseInt(target, 10, 64)
+
+	err := s.db.QueryRowContext(r.Context(), `
+		SELECT s.subreddit_id, s.name, COALESCE(s.description, ''), s.created_at,
+		       (SELECT COUNT(*) FROM joins j WHERE j.subreddit_id = s.subreddit_id) AS member_count,
+		       (SELECT COUNT(*) FROM post p WHERE p.subreddit_id = s.subreddit_id) AS post_count
+		FROM subreddit s
+		WHERE s.name = ? OR s.subreddit_id = ?
+		LIMIT 1
+	`, target, idVal).Scan(&id, &name, &desc, &created, &memberCount, &postCount)
+	if err != nil {
+		errorJSON(w, 404, "subreddit not found")
+		return
+	}
+
+	joined := false
+	if u, ok := s.currentUser(r); ok {
+		var jID int64
+		if s.db.QueryRowContext(r.Context(), "SELECT subreddit_id FROM joins WHERE user_id=? AND subreddit_id=?", u.ID, id).Scan(&jID) == nil {
+			joined = true
+		}
+	}
+
+	jsonJSON(w, 200, map[string]any{
+		"id":          id,
+		"name":        name,
+		"description": desc,
+		"createdAt":   created,
+		"memberCount": memberCount,
+		"postCount":   postCount,
+		"joined":      joined,
+	})
+}
+
+func (s *server) resolveSubID(ctx context.Context, target string) int64 {
+	target = clean(target)
+	if id, err := strconv.ParseInt(target, 10, 64); err == nil && id > 0 {
+		return id
+	}
+	var id int64
+	_ = s.db.QueryRowContext(ctx, "SELECT subreddit_id FROM subreddit WHERE name=?", target).Scan(&id)
+	return id
+}
+
 func (s *server) joinSubgetit(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)
 	if !ok {
 		errorJSON(w, 401, "login required")
 		return
 	}
-	_, err := s.db.Exec("INSERT INTO joins(user_id,subreddit_id) VALUES(?,?) ON DUPLICATE KEY UPDATE joined_at=CURRENT_TIMESTAMP", u.ID, r.PathValue("id"))
+	subID := s.resolveSubID(r.Context(), r.PathValue("id"))
+	if subID == 0 {
+		errorJSON(w, 404, "subreddit not found")
+		return
+	}
+	_, err := s.db.ExecContext(r.Context(), "INSERT INTO joins(user_id,subreddit_id) VALUES(?,?) ON DUPLICATE KEY UPDATE joined_at=CURRENT_TIMESTAMP", u.ID, subID)
 	if err != nil {
 		errorJSON(w, 400, err.Error())
 		return
 	}
 	jsonJSON(w, 200, map[string]bool{"joined": true})
 }
+
 func (s *server) leaveSubgetit(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)
 	if !ok {
 		errorJSON(w, 401, "login required")
 		return
 	}
-	_, _ = s.db.Exec("DELETE FROM joins WHERE user_id=? AND subreddit_id=?", u.ID, r.PathValue("id"))
+	subID := s.resolveSubID(r.Context(), r.PathValue("id"))
+	if subID == 0 {
+		errorJSON(w, 404, "subreddit not found")
+		return
+	}
+	_, _ = s.db.ExecContext(r.Context(), "DELETE FROM joins WHERE user_id=? AND subreddit_id=?", u.ID, subID)
 	jsonJSON(w, 200, map[string]bool{"joined": false})
 }
 func (s *server) awards(w http.ResponseWriter, _ *http.Request) {

@@ -163,7 +163,7 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
             {communityInitial}
           </div>
           <Link
-            href={`/series#${post.series}`}
+            href={`/g/${post.series || post.subgetit || community}`}
             className="font-bold text-ink hover:underline truncate"
           >
             g/{community}

@@ -109,16 +109,38 @@ export function SiteHeader() {
 
         {/* Center: Reddit-style wide pill search bar */}
         <div className="flex-1 max-w-2xl mx-1 sm:mx-4">
-          <Link
-            href="/search"
-            className="reddit-search-pill"
-            data-search-link=""
-            aria-label="Search getit"
-          >
-            <SearchIcon size={17} />
-            <span className="flex-1 text-sm text-muted truncate">Search getit</span>
-            <kbd className="hidden sm:inline-block">/</kbd>
-          </Link>
+          {pathname.startsWith("/g/") || pathname.startsWith("/r/") ? (
+            <Link
+              href={`/search?subgetit=${pathname.split("/")[2] || ""}`}
+              className="reddit-search-pill"
+              data-search-link=""
+              aria-label={`Search in r/${pathname.split("/")[2] || ""}`}
+            >
+              <SearchIcon size={17} />
+              <div className="flex items-center gap-1.5 bg-paper border border-line rounded-full px-2 py-0.5 text-xs font-semibold text-ink shrink-0">
+                <span className="w-4 h-4 rounded-full bg-[#111418] text-[9px] text-white font-bold grid place-items-center">
+                  r/
+                </span>
+                <span>r/{pathname.split("/")[2]}</span>
+                <span className="opacity-50 hover:opacity-100">✕</span>
+              </div>
+              <span className="flex-1 text-sm text-muted truncate">
+                Search in r/{pathname.split("/")[2]}
+              </span>
+              <kbd className="hidden sm:inline-block">/</kbd>
+            </Link>
+          ) : (
+            <Link
+              href="/search"
+              className="reddit-search-pill"
+              data-search-link=""
+              aria-label="Search getit"
+            >
+              <SearchIcon size={17} />
+              <span className="flex-1 text-sm text-muted truncate">Search getit</span>
+              <kbd className="hidden sm:inline-block">/</kbd>
+            </Link>
+          )}
         </div>
 
         {/* Right: Actions & User */}

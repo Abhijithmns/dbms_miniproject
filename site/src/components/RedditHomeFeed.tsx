@@ -155,7 +155,7 @@ export function RedditHomeFeed() {
               return (
                 <li key={subgetit.slug}>
                   <Link
-                    href={`/series#${subgetit.slug}`}
+                    href={`/g/${subgetit.slug}`}
                     className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs rounded hover:bg-line text-ink transition-colors group"
                   >
                     <div className="flex items-center gap-2 min-w-0">

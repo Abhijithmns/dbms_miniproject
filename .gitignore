@@ -1,5 +1,6 @@
 .env
 backend/backend
+backend/getit
 backend/getit-api
 site/AGENTS.md
 

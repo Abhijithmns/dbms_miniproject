@@ -557,6 +557,91 @@
   .reddit-recent-item:hover {
     background: var(--paper);
   }
+
+  /* Reddit Subreddit / Community Layout */
+  .reddit-community-banner {
+    width: 100%;
+    height: 125px;
+    background: linear-gradient(135deg, #0e121a 0%, #161e2e 50%, #0b0f17 100%);
+    border-bottom: 1px solid var(--line);
+    position: relative;
+    overflow: hidden;
+  }
+  .reddit-community-banner-pattern {
+    position: absolute;
+    inset: 0;
+    opacity: 0.18;
+    background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
+    background-size: 16px 16px;
+  }
+  .reddit-community-header-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 0 1rem 0.85rem;
+  }
+  .reddit-community-header-inner {
+    max-width: 1400px;
+    margin-inline: auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    position: relative;
+  }
+  .reddit-community-avatar-lg {
+    display: grid;
+    place-items: center;
+    width: 5rem;
+    height: 5rem;
+    border-radius: 9999px;
+    border: 4px solid var(--surface);
+    background: #0f1115;
+    color: white;
+    font-weight: 800;
+    font-size: 1.85rem;
+    margin-top: -2.5rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  .reddit-highlight-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 120px;
+    padding: 0.95rem;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .reddit-highlight-card:hover {
+    border-color: #878a8c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+  .reddit-rules-card {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .reddit-rule-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 0.95rem;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.82rem;
+  }
+  .reddit-rule-row:last-child {
+    border-bottom: none;
+  }
+  .reddit-rule-num {
+    font-weight: 700;
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
 }
 
 /* Back to top button (src/components/BackToTop.tsx). Remove this block and the component to drop it. */

@@ -63,25 +63,37 @@ export function PostPageContent() {
   const [saved, setSaved] = useState(false);
 
   // Fetch communities for Create Post
+  const commParam = params.get("community");
   useEffect(() => {
     apiRequest<Array<{ id: number; name: string; description: string }>>("/api/subgetits")
       .then((items) => {
         if (Array.isArray(items) && items.length > 0) {
-          setCommunities(
-            items.map((i) => ({
-              id: i.id,
-              slug: i.name,
-              name: i.name,
-              description: i.description,
-            }))
-          );
+          const list = items.map((i) => ({
+            id: i.id,
+            slug: i.name,
+            name: i.name,
+            description: i.description,
+          }));
+          setCommunities(list);
+          if (commParam) {
+            const match = list.find(
+              (c) =>
+                c.slug.toLowerCase() === commParam.toLowerCase() ||
+                c.name.toLowerCase() === commParam.toLowerCase() ||
+                String(c.id) === commParam
+            );
+            if (match?.id) {
+              setCreateCommunity(match.id);
+              return;
+            }
+          }
           if (items[0]?.id) {
             setCreateCommunity(items[0].id);
           }
         }
       })
       .catch(() => undefined);
-  }, []);
+  }, [commParam]);
 
   // Fetch live post details
   useEffect(() => {
@@ -334,7 +346,7 @@ export function PostPageContent() {
             {communityInitial}
           </div>
           <Link
-            href={`/series#${post.series}`}
+            href={`/g/${post.series || post.subgetit || community}`}
             className="font-bold text-sm text-ink hover:underline truncate"
           >
             g/{community}

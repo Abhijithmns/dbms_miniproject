@@ -40,8 +40,8 @@ export default function SeriesPage() {
                 <p className="mt-5 font-mono text-sm text-muted">
                   {parts.length} posts
                 </p>
-                <Link href={parts[0]?.href ?? "/"} className="btn mt-6">
-                  Visit subgetit <ArrowRightIcon />
+                <Link href={`/g/${s.slug}`} className="btn mt-6 inline-flex items-center gap-2">
+                  Visit r/{s.name} <ArrowRightIcon />
                 </Link>
                 <SubgetitActions name={s.name} />
               </div>

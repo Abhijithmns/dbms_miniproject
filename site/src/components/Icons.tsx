@@ -242,6 +242,29 @@ export const ShieldIcon = ({ size = 16, className }: P) => (
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
   </Icon>
 );
+export const PinIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <line x1="12" y1="17" x2="12" y2="22" />
+    <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.77V5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5.77a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z" />
+  </Icon>
+);
+export const GlobeIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="2" y1="12" x2="22" y2="12" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </Icon>
+);
+export const CakeIcon = ({ size = 16, className }: P) => (
+  <Icon size={size} width={1.8} className={className}>
+    <path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" />
+    <path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1" />
+    <path d="M2 21h20" />
+    <line x1="7" y1="8" x2="7" y2="3" />
+    <line x1="12" y1="8" x2="12" y2="3" />
+    <line x1="17" y1="8" x2="17" y2="3" />
+  </Icon>
+);
 export const SparklesIcon = ({ size = 15, className }: P) => (
   <Icon size={size} width={1.8} className={className}>
     <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z" />
