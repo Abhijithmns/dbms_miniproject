@@ -7,6 +7,7 @@ import { toast } from "@/components/Toast";
 import { apiRequest } from "@/lib/api";
 import { AUTH_CHANGED_EVENT } from "@/components/AuthForm";
 import { openAuthModal } from "@/components/AuthModal";
+import { UserAvatar } from "@/components/UserAvatar";
 
 type ApiComment = {
   id: number;
@@ -20,11 +21,7 @@ type ApiComment = {
 type Comment = ApiComment & { age: string };
 
 function avatar(comment: Comment) {
-  return comment.profileImage?.startsWith("data:image/") ? (
-    <img src={comment.profileImage} alt="" />
-  ) : (
-    comment.profileImage || comment.author[0]?.toUpperCase()
-  );
+  return <UserAvatar image={comment.profileImage} username={comment.author} size={32} />;
 }
 
 function CommentItem({

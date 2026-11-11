@@ -19,6 +19,8 @@ import { apiRequest } from "@/lib/api";
 import { THEME_KEY } from "@/lib/theme";
 import { AUTH_CHANGED_EVENT, notifyAuthChanged } from "@/components/AuthForm";
 import { openAuthModal } from "@/components/AuthModal";
+import { UserAvatar } from "@/components/UserAvatar";
+import { PROFILE_UPDATED_EVENT } from "@/components/ProfileEditor";
 
 export const USER_STORAGE_KEY = "getit-demo-user";
 
@@ -33,6 +35,7 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
   const [open, setOpen] = useState(false);
   const [apiUser, setApiUser] = useState<{ id: number; username: string; role: string } | null>(null);
   const [karma, setKarma] = useState<number>(0);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const isDark = useSyncExternalStore(subscribeTheme, isDarkTheme, () => false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -47,9 +50,12 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
     () => null,
   );
 
-  const fetchKarma = (username: string) => {
-    apiRequest<{ karma: number }>(`/api/profile/${username}`)
-      .then((p) => setKarma(p.karma))
+  const fetchProfile = (username: string) => {
+    apiRequest<{ karma: number; profileImage?: string }>(`/api/profile/${username}`)
+      .then((p) => {
+        setKarma(p.karma);
+        setProfileImage(p.profileImage || null);
+      })
       .catch(() => {});
   };
 
@@ -64,11 +70,12 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
         setApiUser(user);
         window.localStorage.setItem(USER_STORAGE_KEY, user.username);
         notify();
-        fetchKarma(user.username);
+        fetchProfile(user.username);
       })
       .catch(() => {
         setApiUser(null);
         setKarma(0);
+        setProfileImage(null);
         window.localStorage.removeItem(USER_STORAGE_KEY);
       });
 
@@ -76,14 +83,27 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
       const custom = e as CustomEvent<{ id: number; username: string; role: string } | null>;
       if (custom.detail) {
         setApiUser(custom.detail);
-        fetchKarma(custom.detail.username);
+        fetchProfile(custom.detail.username);
       } else {
         setApiUser(null);
         setKarma(0);
+        setProfileImage(null);
       }
     };
+
+    const handleProfileUpdate = (e: Event) => {
+      const custom = e as CustomEvent<{ profileImage?: string }>;
+      if (custom.detail?.profileImage) {
+        setProfileImage(custom.detail.profileImage);
+      }
+    };
+
     window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChange);
-    return () => window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChange);
+    window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
+    return () => {
+      window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChange);
+      window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
+    };
   }, []);
 
   // Click outside listener
@@ -123,7 +143,7 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
       setApiUser(user);
       notifyAuthChanged(user);
       toast(`Logged in as u/${user.username}`);
-      fetchKarma(user.username);
+      fetchProfile(user.username);
     } catch {
       notifyAuthChanged(null);
       toast(`Failed to log in as ${next}`);
@@ -137,6 +157,7 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
     } catch {}
     setApiUser(null);
     setKarma(0);
+    setProfileImage(null);
     notifyAuthChanged(null);
     toast("Logged out");
     setOpen(false);
@@ -192,7 +213,11 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
         aria-label="User profile menu"
         onClick={() => setOpen((o) => !o)}
       >
-        <SnooAvatarIcon size={33} />
+        <UserAvatar
+          image={effectiveUsername ? profileImage : null}
+          username={effectiveUsername}
+          size={33}
+        />
         {/* Status indicator dot */}
         <span
           className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-surface ${
@@ -216,7 +241,11 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
               {/* User Header */}
               <div className="p-2 flex items-center gap-3">
                 <div className="relative">
-                  <SnooAvatarIcon size={42} />
+                  <UserAvatar
+                    image={profileImage}
+                    username={effectiveUsername}
+                    size={42}
+                  />
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 ring-2 ring-surface" />
                 </div>
                 <div className="min-w-0 flex-1">

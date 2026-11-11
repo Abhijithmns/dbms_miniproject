@@ -479,13 +479,22 @@ func (s *server) updateProfile(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, 403, "you can only update your own profile")
 		return
 	}
-	var q struct{ ProfileImage string }
-	_ = json.NewDecoder(r.Body).Decode(&q)
+	var q struct {
+		ProfileImage string `json:"profileImage"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
+		errorJSON(w, 400, "invalid request body")
+		return
+	}
+	if len(q.ProfileImage) > 10*1024*1024 {
+		errorJSON(w, 400, "image payload too large (max 10MB)")
+		return
+	}
 	if _, err := s.db.Exec("UPDATE app_user SET profile_image=? WHERE user_id=?", q.ProfileImage, u.ID); err != nil {
 		errorJSON(w, 500, err.Error())
 		return
 	}
-	jsonJSON(w, 200, map[string]string{"message": "profile updated"})
+	jsonJSON(w, 200, map[string]any{"message": "profile updated", "profileImage": q.ProfileImage})
 }
 func (s *server) subgetits(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.db.Query("SELECT subreddit_id,name,description,created_at FROM subreddit ORDER BY name")
