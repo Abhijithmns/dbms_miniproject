@@ -53,6 +53,19 @@ BEGIN
 END//
 DELIMITER ;
 
+DROP TRIGGER IF EXISTS post_after_update_recalculate_user_karma;
+DELIMITER //
+CREATE TRIGGER post_after_update_recalculate_user_karma
+AFTER UPDATE ON post
+FOR EACH ROW
+BEGIN
+  UPDATE app_user
+  SET karma = COALESCE((SELECT SUM(karma) FROM post WHERE user_id = NEW.user_id), 0)
+            + COALESCE((SELECT SUM(karma) FROM comment WHERE user_id = NEW.user_id), 0)
+  WHERE user_id = NEW.user_id;
+END//
+DELIMITER ;
+
 -- CTE report: rank posts within each subgetit.
 WITH ranked_posts AS (
   SELECT p.post_id, p.title, p.karma, s.name AS subgetit,
