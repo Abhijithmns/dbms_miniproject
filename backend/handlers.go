@@ -85,6 +85,24 @@ func (s *server) posts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	postAwards := map[int64][]map[string]any{}
+	if aRows, err := s.db.QueryContext(r.Context(), "SELECT award_id, name, description, icon_url, cost, post_id FROM award WHERE post_id IS NOT NULL"); err == nil {
+		defer aRows.Close()
+		for aRows.Next() {
+			var aId, cost, pid int64
+			var aName, aDesc, aIcon string
+			if aRows.Scan(&aId, &aName, &aDesc, &aIcon, &cost, &pid) == nil {
+				postAwards[pid] = append(postAwards[pid], map[string]any{
+					"awardId":     aId,
+					"name":        aName,
+					"description": aDesc,
+					"iconUrl":     aIcon,
+					"cost":        cost,
+				})
+			}
+		}
+	}
+
 	out := []map[string]any{}
 	for rows.Next() {
 		var id, subId, karma, count int64
@@ -92,6 +110,10 @@ func (s *server) posts(w http.ResponseWriter, r *http.Request) {
 		var created time.Time
 		if rows.Scan(&id, &title, &body, &flair, &sub, &subId, &author, &created, &karma, &count) == nil {
 			pidStr := strconv.FormatInt(id, 10)
+			pa := postAwards[id]
+			if pa == nil {
+				pa = []map[string]any{}
+			}
 			out = append(out, map[string]any{
 				"id":          id,
 				"postId":      id,
@@ -109,6 +131,7 @@ func (s *server) posts(w http.ResponseWriter, r *http.Request) {
 				"userVote":    userVotes[id],
 				"joined":      userJoins[subId],
 				"saved":       savedSet[pidStr],
+				"awards":      pa,
 			})
 		}
 	}
@@ -183,6 +206,26 @@ func (s *server) postDetails(w http.ResponseWriter, r *http.Request) {
 			saved = true
 		}
 	}
+	var postAwards []map[string]any
+	if aRows, aErr := s.db.QueryContext(r.Context(), "SELECT award_id, name, description, icon_url, cost FROM award WHERE post_id=?", pId); aErr == nil {
+		defer aRows.Close()
+		for aRows.Next() {
+			var aID, aCost int64
+			var aName, aDesc, aIcon string
+			if aRows.Scan(&aID, &aName, &aDesc, &aIcon, &aCost) == nil {
+				postAwards = append(postAwards, map[string]any{
+					"awardId":     aID,
+					"name":        aName,
+					"description": aDesc,
+					"iconUrl":     aIcon,
+					"cost":        aCost,
+				})
+			}
+		}
+	}
+	if postAwards == nil {
+		postAwards = []map[string]any{}
+	}
 	jsonJSON(w, 200, map[string]any{
 		"id":          pId,
 		"postId":      pId,
@@ -201,6 +244,7 @@ func (s *server) postDetails(w http.ResponseWriter, r *http.Request) {
 		"userVote":    userVote,
 		"saved":       saved,
 		"joined":      joined,
+		"awards":      postAwards,
 	})
 }
 func (s *server) updatePost(w http.ResponseWriter, r *http.Request) {
@@ -723,6 +767,55 @@ func (s *server) awardComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonJSON(w, 201, map[string]string{"message": "award given"})
+}
+func (s *server) awardPost(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.currentUser(r)
+	if !ok {
+		errorJSON(w, 401, "login required to give an award")
+		return
+	}
+	id := s.postID(r.Context(), r.PathValue("id"))
+	if id == 0 {
+		errorJSON(w, 404, "post not found")
+		return
+	}
+	var q struct {
+		AwardID int64 `json:"awardId"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&q)
+	if q.AwardID == 0 {
+		errorJSON(w, 400, "awardId is required")
+		return
+	}
+
+	var awardName, awardIcon string
+	var cost int64
+	err := s.db.QueryRowContext(r.Context(), "SELECT name, icon_url, cost FROM award WHERE award_id=?", q.AwardID).Scan(&awardName, &awardIcon, &cost)
+	if err != nil {
+		errorJSON(w, 404, "award not found")
+		return
+	}
+
+	_, err = s.db.ExecContext(r.Context(), "UPDATE award SET post_id=?, given_at=CURRENT_TIMESTAMP WHERE award_id=?", id, q.AwardID)
+	if err != nil {
+		errorJSON(w, 400, err.Error())
+		return
+	}
+
+	_, _ = s.db.ExecContext(r.Context(), "UPDATE post SET karma = karma + 5 WHERE post_id=?", id)
+
+	var newKarma int64
+	_ = s.db.QueryRowContext(r.Context(), "SELECT karma FROM post WHERE post_id=?", id).Scan(&newKarma)
+
+	jsonJSON(w, 201, map[string]any{
+		"message":   "award given",
+		"awardId":   q.AwardID,
+		"awardName": awardName,
+		"iconUrl":   awardIcon,
+		"karma":     newKarma,
+		"postId":    id,
+		"giver":     u.Username,
+	})
 }
 func (s *server) messages(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)

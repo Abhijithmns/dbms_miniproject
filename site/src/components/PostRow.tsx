@@ -15,8 +15,9 @@ import { toast } from "@/components/Toast";
 import { apiRequest } from "@/lib/api";
 import { copyText } from "@/lib/clipboard";
 import { openAuthModal } from "@/components/AuthModal";
+import { GiveAwardModal } from "@/components/GiveAwardModal";
 import type { ReactNode } from "react";
-import { seriesName, tagHref, type Post } from "@/data/posts";
+import { seriesName, tagHref, type Post, type AwardItem } from "@/data/posts";
 
 /** A topic as a link to the topic browser (the # is drawn by the .tag class). */
 export function TagLink({ tag, children }: { tag: string; children?: ReactNode }) {
@@ -72,6 +73,8 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
   const [joined, setJoined] = useState(post.joined ?? false);
   const [saved, setSaved] = useState(post.saved ?? false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [awardModalOpen, setAwardModalOpen] = useState(false);
+  const [postAwards, setPostAwards] = useState<AwardItem[]>(post.awards || []);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -237,6 +240,22 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
         ))}
       </div>
 
+      {/* Post Awards */}
+      {postAwards.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          {postAwards.map((a, idx) => (
+            <span
+              key={`${a.awardId}-${idx}`}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 border border-amber-500/25 text-ink shadow-sm"
+              title={`${a.name}: ${a.description || ""}`}
+            >
+              <span>{a.iconUrl || "🏆"}</span>
+              <span className="text-[10px] font-bold">{a.name}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Excerpt Body */}
       <p className="text-sm text-muted leading-relaxed line-clamp-3">
         {highlight(post.excerpt, terms)}
@@ -284,14 +303,20 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
         </Link>
 
         {/* Award Pill */}
-        <Link
-          href={`/post?post=${post.id || post.slug}#comments`}
-          className="reddit-pill-btn"
+        <button
+          type="button"
+          onClick={() => setAwardModalOpen(true)}
+          className="reddit-pill-btn hover:text-amber-500 transition-colors"
           title="Give award"
         >
           <AwardIcon size={15} />
           <span className="hidden sm:inline">Award</span>
-        </Link>
+          {postAwards.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500">
+              {postAwards.length}
+            </span>
+          )}
+        </button>
 
         {/* Share Pill */}
         <button
@@ -315,6 +340,18 @@ export function PostRow({ post, terms }: { post: Post; terms?: string[] }) {
           <BookmarkIcon size={15} />
         </button>
       </div>
+
+      <GiveAwardModal
+        isOpen={awardModalOpen}
+        onClose={() => setAwardModalOpen(false)}
+        targetType="post"
+        targetId={post.id || post.slug}
+        targetTitle={post.title}
+        onAwardGiven={(award, newKarma) => {
+          setPostAwards((prev) => [...prev, award]);
+          if (typeof newKarma === "number") setScore(newKarma);
+        }}
+      />
     </li>
   );
 }

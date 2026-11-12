@@ -20,6 +20,15 @@ export type Post = {
   saved?: boolean;
   joined?: boolean;
   href: string;
+  awards?: AwardItem[];
+};
+
+export type AwardItem = {
+  awardId: number;
+  name: string;
+  description?: string;
+  iconUrl?: string;
+  cost?: number;
 };
 
 export type Series = { id?: number; slug: string; name: string; description: string };
@@ -39,6 +48,7 @@ export type ApiPost = {
   userVote?: "up" | "down" | null;
   saved?: boolean;
   joined?: boolean;
+  awards?: AwardItem[];
 };
 
 export function apiPostToPost(p: ApiPost): Post {
@@ -64,6 +74,7 @@ export function apiPostToPost(p: ApiPost): Post {
     userVote: p.userVote ?? null,
     saved: !!p.saved,
     joined: !!p.joined,
+    awards: p.awards || [],
     href: `/post?post=${p.id}`,
   };
 }

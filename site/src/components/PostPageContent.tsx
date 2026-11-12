@@ -14,9 +14,10 @@ import {
   ShareIcon,
 } from "@/components/Icons";
 import { PostManagement } from "@/components/PostManagement";
+import { GiveAwardModal } from "@/components/GiveAwardModal";
 import { toast } from "@/components/Toast";
 import { openAuthModal } from "@/components/AuthModal";
-import { POSTS, SERIES, seriesName, type Post } from "@/data/posts";
+import { POSTS, SERIES, seriesName, type Post, type AwardItem } from "@/data/posts";
 import { apiRequest } from "@/lib/api";
 import { copyText } from "@/lib/clipboard";
 
@@ -38,6 +39,7 @@ type ApiPostDetail = {
   userVote: string;
   saved: boolean;
   joined: boolean;
+  awards?: AwardItem[];
 };
 
 export function PostPageContent() {
@@ -61,6 +63,8 @@ export function PostPageContent() {
   const [score, setScore] = useState<number>(fallbackPost.karma ?? 0);
   const [joined, setJoined] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [awardModalOpen, setAwardModalOpen] = useState(false);
+  const [postAwards, setPostAwards] = useState<AwardItem[]>(fallbackPost.awards || []);
 
   // Fetch communities for Create Post
   const commParam = params.get("community");
@@ -129,6 +133,7 @@ export function PostPageContent() {
         setVote(loaded.userVote ?? null);
         setJoined(!!loaded.joined);
         setSaved(!!loaded.saved);
+        setPostAwards(data.awards || []);
       })
       .catch(() => undefined);
   }, [postParam]);
@@ -378,13 +383,29 @@ export function PostPageContent() {
       {/* Post Title & Flairs */}
       <h1 className="text-2xl sm:text-3xl font-bold mt-4 leading-snug text-ink">{post.title}</h1>
 
-      <div className="flex flex-wrap items-center gap-1.5 mt-2.5 mb-4">
+      <div className="flex flex-wrap items-center gap-1.5 mt-2.5 mb-2">
         {post.tags.map((tag) => (
           <span key={tag} className="reddit-flair">
             #{tag}
           </span>
         ))}
       </div>
+
+      {/* Post Awards */}
+      {postAwards.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-4">
+          {postAwards.map((a, idx) => (
+            <span
+              key={`${a.awardId}-${idx}`}
+              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 border border-amber-500/30 text-ink shadow-sm"
+              title={`${a.name}: ${a.description || ""}`}
+            >
+              <span>{a.iconUrl || "🏆"}</span>
+              <span className="text-[11px] font-bold">{a.name}</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Post Body Content */}
       <div className="prose-nb py-2 leading-relaxed text-ink/90 text-base sm:text-lg">
@@ -437,9 +458,19 @@ export function PostPageContent() {
         </a>
 
         {/* Award Pill */}
-        <button type="button" className="reddit-pill-btn" onClick={handleShare}>
+        <button
+          type="button"
+          className="reddit-pill-btn hover:text-amber-500 transition-colors"
+          onClick={() => setAwardModalOpen(true)}
+          title="Give an Award"
+        >
           <AwardIcon size={15} />
           <span>Award</span>
+          {postAwards.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500">
+              {postAwards.length}
+            </span>
+          )}
         </button>
 
         {/* Share Pill */}
@@ -469,6 +500,19 @@ export function PostPageContent() {
 
       {/* Comments Section */}
       <CommentsSection postSlug={String(post.id || postParam || post.slug)} count={post.comments} />
+
+      {/* Give Award Modal */}
+      <GiveAwardModal
+        isOpen={awardModalOpen}
+        onClose={() => setAwardModalOpen(false)}
+        targetType="post"
+        targetId={post.id || postParam || post.slug}
+        targetTitle={post.title}
+        onAwardGiven={(award, newKarma) => {
+          setPostAwards((prev) => [...prev, award]);
+          if (typeof newKarma === "number") setScore(newKarma);
+        }}
+      />
     </article>
   );
 }
