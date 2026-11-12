@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   BookIcon,
+  BookmarkIcon,
   CakeIcon,
   ChatIcon,
   ChevronDownIcon,
@@ -273,6 +274,10 @@ export function SubredditPage({ slug }: { slug: string }) {
             <Link href="/messages" className="side-link">
               <ChatIcon size={17} />
               <span>Inbox & Messages</span>
+            </Link>
+            <Link href="/profile?tab=saved" className="side-link">
+              <BookmarkIcon size={17} />
+              <span>Saved Posts</span>
             </Link>
             <Link href="/moderation" className="side-link">
               <SettingsIcon size={17} />

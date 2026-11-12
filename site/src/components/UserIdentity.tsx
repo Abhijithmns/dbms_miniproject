@@ -282,6 +282,15 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
                 </Link>
 
                 <Link
+                  href="/profile?tab=saved"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-paper text-ink transition-colors font-semibold"
+                  onClick={() => setOpen(false)}
+                >
+                  <BookmarkIcon size={16} className="text-muted" />
+                  <span>Saved Posts</span>
+                </Link>
+
+                <Link
                   href="/post"
                   className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-paper text-ink transition-colors font-semibold"
                   onClick={() => setOpen(false)}
