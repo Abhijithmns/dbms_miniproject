@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SearchIcon } from "@/components/Icons";
 import { PostRow, TagLink } from "@/components/PostRow";
-import { apiPostToPost, POSTS, plural, seriesName, type ApiPost, type Post } from "@/data/posts";
+import { apiPostToPost, plural, seriesName, type ApiPost, type Post } from "@/data/posts";
 import { apiRequest } from "@/lib/api";
 import { asset } from "@/lib/asset";
 
@@ -14,7 +14,7 @@ import { asset } from "@/lib/asset";
  * page to come here (src/components/SearchShortcut.tsx).
  */
 function SearchView({ initial }: { initial: string }) {
-  const [posts, setPosts] = useState<Post[]>(POSTS);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [value, setValue] = useState(initial);
   const inputRef = useRef<HTMLInputElement>(null);
   const query = value.trim();

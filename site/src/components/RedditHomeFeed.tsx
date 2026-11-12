@@ -17,23 +17,24 @@ import {
 } from "@/components/Icons";
 import { PostRow } from "@/components/PostRow";
 import { CreateCommunityModal } from "@/components/CreateCommunityModal";
-import { apiPostToPost, POSTS, SERIES, type ApiPost, type Post, type Series } from "@/data/posts";
+import { apiPostToPost, type ApiPost, type Post, type Series } from "@/data/posts";
 import { apiRequest } from "@/lib/api";
 
 export function RedditHomeFeed() {
   const [tab, setTab] = useState<"for-you" | "following" | "hot" | "new" | "top">("for-you");
-  const [posts, setPosts] = useState<Post[]>(POSTS);
-  const [subreddits, setSubreddits] = useState<Series[]>(SERIES);
-  const [starred, setStarred] = useState<Record<string, boolean>>({
-    dbms: true,
-    "campus-life": false,
-    "programming-help": true,
-    dbms_dml_demo: true,
-  });
-  const [recentPosts, setRecentPosts] = useState<Post[]>(POSTS.slice(0, 5));
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [subreddits, setSubreddits] = useState<Series[]>([]);
+  const [starred, setStarred] = useState<Record<string, boolean>>({});
+  const [recentPosts, setRecentPosts] = useState<Post[]>([]);
+  const [stats, setStats] = useState<{ totalUsers: number; totalPosts: number; totalCommunities: number } | null>(null);
   const [createCommunityOpen, setCreateCommunityOpen] = useState(false);
 
   useEffect(() => {
+    // Load live platform stats
+    apiRequest<{ totalUsers: number; totalPosts: number; totalCommunities: number }>("/api/stats")
+      .then(setStats)
+      .catch(() => undefined);
+
     // Load live posts from MariaDB backend
     apiRequest<ApiPost[]>("/api/posts")
       .then((data) => {
@@ -341,14 +342,18 @@ export function RedditHomeFeed() {
             Welcome to getit! The community that gets it. Ask questions, discuss DBMS topics, and
             share discoveries.
           </p>
-          <div className="mt-3 pt-3 border-t border-line flex items-center justify-between text-xs">
+          <div className="mt-3 pt-3 border-t border-line grid grid-cols-3 gap-2 text-center text-xs">
             <div>
-              <p className="font-bold text-ink">12.4k</p>
-              <p className="text-muted">Members</p>
+              <p className="font-bold text-ink">{stats ? stats.totalUsers : "—"}</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider">Members</p>
             </div>
             <div>
-              <p className="font-bold text-ink">142</p>
-              <p className="text-muted">Online</p>
+              <p className="font-bold text-ink">{stats ? stats.totalPosts : "—"}</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider">Posts</p>
+            </div>
+            <div>
+              <p className="font-bold text-ink">{stats ? stats.totalCommunities : "—"}</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider">Subgetits</p>
             </div>
           </div>
           <div className="flex flex-col gap-2 mt-4">

@@ -359,9 +359,11 @@ export function MessageCenter() {
     },
   ];
 
-  // Initialize seed threads
-  for (const st of seedThreads) {
-    threadsMap.set(st.partnerUsername, { ...st, messages: [...st.messages] });
+  // Initialize seed threads only when no database messages exist
+  if (rawMessages.length === 0) {
+    for (const st of seedThreads) {
+      threadsMap.set(st.partnerUsername, { ...st, messages: [...st.messages] });
+    }
   }
 
   // Merge database messages

@@ -19,7 +19,8 @@ type server struct {
 
 func main() {
 	loadEnv(".env")
-	db, err := sql.Open("mysql", env("MYSQL_DSN", "root:@tcp(127.0.0.1:3306)/dbms_miniproject?parseTime=true&charset=utf8mb4"))
+	dsn := env("DATABASE_URL", env("MYSQL_DSN", "abhijith:571968@tcp(127.0.0.1:3306)/dbms_miniproject?parseTime=true&charset=utf8mb4"))
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -27,9 +28,10 @@ func main() {
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	s := &server{db: db, redisAddr: env("REDIS_ADDR", "127.0.0.1:6379")}
+	s := &server{db: db, redisAddr: env("REDIS_URL", env("REDIS_ADDR", "127.0.0.1:6379"))}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.health)
+	mux.HandleFunc("GET /api/stats", s.stats)
 	mux.HandleFunc("GET /api/auth/me", s.me)
 	mux.HandleFunc("POST /api/auth/register", s.register)
 	mux.HandleFunc("POST /api/auth/login", s.login)

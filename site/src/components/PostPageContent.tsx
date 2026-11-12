@@ -17,7 +17,7 @@ import { PostManagement } from "@/components/PostManagement";
 import { GiveAwardModal } from "@/components/GiveAwardModal";
 import { toast } from "@/components/Toast";
 import { openAuthModal } from "@/components/AuthModal";
-import { POSTS, SERIES, seriesName, type Post, type AwardItem } from "@/data/posts";
+import { seriesName, type Post, type AwardItem, type Series } from "@/data/posts";
 import { apiRequest } from "@/lib/api";
 import { copyText } from "@/lib/clipboard";
 
@@ -49,22 +49,22 @@ export function PostPageContent() {
   const isCreate = !postParam || params.get("create") === "true";
 
   // Create Post state
-  const [createCommunity, setCreateCommunity] = useState<number>(2); // Default to campus-life
+  const [createCommunity, setCreateCommunity] = useState<number>(1);
   const [createTitle, setCreateTitle] = useState("");
   const [createBody, setCreateBody] = useState("");
   const [createFlair, setCreateFlair] = useState("advice");
   const [submitting, setSubmitting] = useState(false);
-  const [communities, setCommunities] = useState(SERIES);
+  const [communities, setCommunities] = useState<Series[]>([]);
 
   // Post Detail state
-  const fallbackPost = POSTS.find((item) => String(item.id) === postParam || item.slug === postParam) ?? POSTS[0];
-  const [post, setPost] = useState<Post>(fallbackPost);
+  const [post, setPost] = useState<Post | null>(null);
+  const [postLoading, setPostLoading] = useState(Boolean(postParam));
   const [vote, setVote] = useState<"up" | "down" | null>(null);
-  const [score, setScore] = useState<number>(fallbackPost.karma ?? 0);
+  const [score, setScore] = useState<number>(0);
   const [joined, setJoined] = useState(false);
   const [saved, setSaved] = useState(false);
   const [awardModalOpen, setAwardModalOpen] = useState(false);
-  const [postAwards, setPostAwards] = useState<AwardItem[]>(fallbackPost.awards || []);
+  const [postAwards, setPostAwards] = useState<AwardItem[]>([]);
 
   // Fetch communities for Create Post
   const commParam = params.get("community");
@@ -102,8 +102,10 @@ export function PostPageContent() {
   // Fetch live post details
   useEffect(() => {
     if (!postParam) return;
+    let active = true;
     apiRequest<ApiPostDetail>(`/api/posts/${postParam}/details`)
       .then((data) => {
+        if (!active) return;
         const flairList = data.flair
           ? data.flair.split(",").map((s) => s.trim()).filter(Boolean)
           : [];
@@ -135,7 +137,13 @@ export function PostPageContent() {
         setSaved(!!loaded.saved);
         setPostAwards(data.awards || []);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setPostLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [postParam]);
 
   // Handle post creation
@@ -179,7 +187,7 @@ export function PostPageContent() {
     setScore(prevScore + delta);
 
     try {
-      const postId = post.id || postParam || post.slug;
+      const postId = post?.id || postParam || post?.slug;
       const res = await apiRequest<{ message: string; karma: number; userVote: string }>(
         `/api/posts/${postId}/vote`,
         {
@@ -204,6 +212,7 @@ export function PostPageContent() {
   }
 
   async function toggleSave() {
+    if (!post) return;
     const next = !saved;
     setSaved(next);
     toast(next ? "Post saved to your profile" : "Post unsaved");
@@ -216,6 +225,7 @@ export function PostPageContent() {
   }
 
   async function toggleJoin() {
+    if (!post) return;
     const next = !joined;
     setJoined(next);
     const commName = seriesName(post.series) || "getit";
@@ -330,6 +340,26 @@ export function PostPageContent() {
             </button>
           </div>
         </form>
+      </div>
+    );
+  }
+
+  if (postLoading) {
+    return (
+      <div className="max-w-[780px] mx-auto border border-line rounded-xl bg-surface p-12 text-center text-muted font-mono animate-pulse">
+        Loading post from MariaDB…
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="max-w-[780px] mx-auto border border-line rounded-xl bg-surface p-10 text-center text-muted">
+        <h2 className="text-lg font-bold text-ink">Post Not Found</h2>
+        <p className="text-xs mt-1">This post may have been deleted or does not exist.</p>
+        <Link href="/" className="btn mt-4 inline-block !text-xs !py-1.5">
+          Back to Home
+        </Link>
       </div>
     );
   }

@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { PostRow } from "@/components/PostRow";
-import { apiPostToPost, POSTS, plural, type ApiPost, type Post } from "@/data/posts";
+import { apiPostToPost, plural, type ApiPost, type Post } from "@/data/posts";
 import { apiRequest } from "@/lib/api";
 
 /**
@@ -12,7 +12,7 @@ import { apiRequest } from "@/lib/api";
  * value that isn't a tag shows every post and a short notice.
  */
 function TagBrowserView({ requested }: { requested: string | null }) {
-  const [posts, setPosts] = useState<Post[]>(POSTS);
+  const [posts, setPosts] = useState<Post[]>([]);
 
   useEffect(() => {
     apiRequest<ApiPost[]>("/api/posts")

@@ -34,6 +34,7 @@ interface SubredditDetails {
   memberCount?: number;
   postCount?: number;
   joined?: boolean;
+  moderators?: string[];
 }
 
 export function SubredditPage({ slug }: { slug: string }) {
@@ -553,9 +554,13 @@ export function SubredditPage({ slug }: { slug: string }) {
               <span>Moderators</span>
             </div>
             <div className="text-xs space-y-1 font-mono text-muted">
-              <div>u/getit_demo</div>
-              <div>u/admin</div>
-              <div>u/alice_dml</div>
+              {subgetit?.moderators && subgetit.moderators.length > 0 ? (
+                subgetit.moderators.map((m) => (
+                  <div key={m}>u/{m}</div>
+                ))
+              ) : (
+                <div className="text-[11px] text-muted italic">No moderators assigned</div>
+              )}
             </div>
             <Link
               href="/messages?to=moderators"

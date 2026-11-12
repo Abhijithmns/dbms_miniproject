@@ -678,6 +678,20 @@ func (s *server) subgetitDetails(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var moderators []string
+	if mRows, mErr := s.db.QueryContext(r.Context(), "SELECT username FROM app_user WHERE mod_subreddit_id = ? ORDER BY username", id); mErr == nil {
+		defer mRows.Close()
+		for mRows.Next() {
+			var mUser string
+			if mRows.Scan(&mUser) == nil {
+				moderators = append(moderators, mUser)
+			}
+		}
+	}
+	if moderators == nil {
+		moderators = []string{}
+	}
+
 	jsonJSON(w, 200, map[string]any{
 		"id":          id,
 		"name":        name,
@@ -686,6 +700,22 @@ func (s *server) subgetitDetails(w http.ResponseWriter, r *http.Request) {
 		"memberCount": memberCount,
 		"postCount":   postCount,
 		"joined":      joined,
+		"moderators":  moderators,
+	})
+}
+
+func (s *server) stats(w http.ResponseWriter, r *http.Request) {
+	var totalUsers, totalPosts, totalSubs, totalComments int64
+	_ = s.db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM app_user").Scan(&totalUsers)
+	_ = s.db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM post").Scan(&totalPosts)
+	_ = s.db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM subreddit").Scan(&totalSubs)
+	_ = s.db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM comment").Scan(&totalComments)
+
+	jsonJSON(w, 200, map[string]any{
+		"totalUsers":       totalUsers,
+		"totalPosts":       totalPosts,
+		"totalCommunities": totalSubs,
+		"totalComments":    totalComments,
 	})
 }
 

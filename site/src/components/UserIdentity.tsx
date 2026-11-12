@@ -130,27 +130,6 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
     };
   }, [open]);
 
-  async function login(preferredName?: string) {
-    const next = preferredName ?? "getit_demo";
-    try {
-      const user = await apiRequest<{ id: number; username: string; role: string }>(
-        "/api/auth/login",
-        {
-          method: "POST",
-          body: JSON.stringify({ username: next, password: "demo-password" }),
-        }
-      );
-      setApiUser(user);
-      notifyAuthChanged(user);
-      toast(`Logged in as u/${user.username}`);
-      fetchProfile(user.username);
-    } catch {
-      notifyAuthChanged(null);
-      toast(`Failed to log in as ${next}`);
-    }
-    setOpen(false);
-  }
-
   async function logout() {
     try {
       await apiRequest("/api/auth/logout", { method: "POST" });
@@ -171,7 +150,7 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
   }
 
   const effectiveUsername = apiUser?.username ?? localUsername;
-  const role = apiUser?.role ?? (effectiveUsername === "getit_demo" ? "moderator" : "user");
+  const role = apiUser?.role ?? "user";
 
   // Inline mobile fallback (e.g. for profile editor)
   if (mobile) {
@@ -399,14 +378,6 @@ export function UserIdentity({ mobile = false }: { mobile?: boolean }) {
                   }}
                 >
                   Sign Up
-                </button>
-
-                <button
-                  type="button"
-                  className="w-full bg-paper hover:bg-line text-muted hover:text-ink font-semibold py-1.5 px-3 rounded-full text-[0.72rem] transition-colors cursor-pointer text-center"
-                  onClick={() => login("getit_demo")}
-                >
-                  Quick Demo: u/getit_demo
                 </button>
 
                 <Link
