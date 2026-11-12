@@ -186,8 +186,8 @@ export function GiveAwardModal({
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-line bg-paper/30">
-          <span className="text-[11px] text-muted font-mono">
-            MariaDB Table: <code className="font-bold text-ink">award</code>
+          <span className="text-[11px] text-muted">
+            Awards highlight great content for everyone
           </span>
           <div className="flex items-center gap-2">
             <button

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CloseIcon, PlusIcon, ShieldIcon } from "@/components/Icons";
+import { CloseIcon, PlusIcon } from "@/components/Icons";
 import { toast } from "@/components/Toast";
 import { openAuthModal } from "@/components/AuthModal";
 import { USER_STORAGE_KEY } from "@/components/UserIdentity";
@@ -156,16 +156,6 @@ export function CreateCommunityModal({
               placeholder="Tell visitors what this community is about..."
               className="w-full px-3 py-2 rounded-xl bg-paper border border-line text-sm text-ink outline-none focus:border-pen resize-none"
             />
-          </div>
-
-          {/* DBMS Information Callout */}
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-paper/60 border border-line text-xs text-muted">
-            <ShieldIcon size={16} className="text-pen shrink-0 mt-0.5" />
-            <p className="leading-relaxed">
-              Creating a community automatically stores a record in the MariaDB{" "}
-              <code className="text-ink font-mono font-bold">subreddit</code> table, adds you to{" "}
-              <code className="text-ink font-mono font-bold">joins</code>, and assigns your user as its moderator.
-            </p>
           </div>
 
           {/* Footer Actions */}
