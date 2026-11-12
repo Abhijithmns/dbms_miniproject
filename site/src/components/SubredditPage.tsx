@@ -20,6 +20,7 @@ import {
   ShieldIcon,
 } from "@/components/Icons";
 import { PostRow } from "@/components/PostRow";
+import { CreateCommunityModal } from "@/components/CreateCommunityModal";
 import { toast } from "@/components/Toast";
 import { apiPostToPost, POSTS, SERIES, type ApiPost, type Post, type Series } from "@/data/posts";
 import { apiRequest } from "@/lib/api";
@@ -45,6 +46,7 @@ export function SubredditPage({ slug }: { slug: string }) {
   const [showHighlights, setShowHighlights] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [createCommunityOpen, setCreateCommunityOpen] = useState(false);
 
   // Fetch Subreddit details
   useEffect(() => {
@@ -259,10 +261,14 @@ export function SubredditPage({ slug }: { slug: string }) {
               <BookIcon size={18} />
               <span>Explore</span>
             </Link>
-            <Link href="/series" className="side-link text-pen font-bold">
+            <button
+              type="button"
+              onClick={() => setCreateCommunityOpen(true)}
+              className="side-link text-pen font-bold w-full text-left"
+            >
               <PlusIcon size={18} />
               <span>Start a community</span>
-            </Link>
+            </button>
           </div>
 
           {/* Feeds Section */}
@@ -560,6 +566,11 @@ export function SubredditPage({ slug }: { slug: string }) {
           </div>
         </aside>
       </div>
+
+      <CreateCommunityModal
+        isOpen={createCommunityOpen}
+        onClose={() => setCreateCommunityOpen(false)}
+      />
     </div>
   );
 }

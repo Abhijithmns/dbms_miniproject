@@ -48,6 +48,7 @@ func main() {
 	mux.HandleFunc("GET /api/profile/{username}", s.profile)
 	mux.HandleFunc("PUT /api/profile/{username}", s.updateProfile)
 	mux.HandleFunc("GET /api/subgetits", s.subgetits)
+	mux.HandleFunc("POST /api/subgetits", s.createSubgetit)
 	mux.HandleFunc("GET /api/subgetits/{name}", s.subgetitDetails)
 	mux.HandleFunc("POST /api/subgetits/{id}/join", s.joinSubgetit)
 	mux.HandleFunc("DELETE /api/subgetits/{id}/join", s.leaveSubgetit)

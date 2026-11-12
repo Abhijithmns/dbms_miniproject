@@ -3,6 +3,7 @@ import { ArrowRightIcon } from "@/components/Icons";
 import { SERIES, pad2, partsOf } from "@/data/posts";
 import { pageMetadata } from "@/lib/metadata";
 import { SubgetitActions } from "@/components/SubgetitActions";
+import { CreateCommunityButton } from "@/components/CreateCommunityButton";
 
 export const metadata = pageMetadata(
   "Series",
@@ -21,6 +22,11 @@ export default function SeriesPage() {
           <p className="mt-4 max-w-2xl text-lg text-muted">
             Every subgetit has its own rhythm, regulars, and conversations. Drop in, read around, or start a thread.
           </p>
+          <div className="mt-6">
+            <CreateCommunityButton className="btn inline-flex items-center gap-2">
+              Start a Community
+            </CreateCommunityButton>
+          </div>
         </div>
       </section>
 

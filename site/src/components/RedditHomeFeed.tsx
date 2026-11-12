@@ -16,6 +16,7 @@ import {
   StarIcon,
 } from "@/components/Icons";
 import { PostRow } from "@/components/PostRow";
+import { CreateCommunityModal } from "@/components/CreateCommunityModal";
 import { apiPostToPost, POSTS, SERIES, type ApiPost, type Post, type Series } from "@/data/posts";
 import { apiRequest } from "@/lib/api";
 
@@ -30,6 +31,7 @@ export function RedditHomeFeed() {
     dbms_dml_demo: true,
   });
   const [recentPosts, setRecentPosts] = useState<Post[]>(POSTS.slice(0, 5));
+  const [createCommunityOpen, setCreateCommunityOpen] = useState(false);
 
   useEffect(() => {
     // Load live posts from MariaDB backend
@@ -105,13 +107,14 @@ export function RedditHomeFeed() {
             <BookIcon size={18} />
             <span>Explore</span>
           </Link>
-          <Link
-            href="/series"
-            className="side-link text-pen font-bold"
+          <button
+            type="button"
+            onClick={() => setCreateCommunityOpen(true)}
+            className="side-link text-pen font-bold w-full text-left"
           >
             <PlusIcon size={18} />
             <span>Start a community</span>
-          </Link>
+          </button>
         </div>
 
         {/* Feeds Section */}
@@ -348,9 +351,19 @@ export function RedditHomeFeed() {
               <p className="text-muted">Online</p>
             </div>
           </div>
-          <Link href="/post" className="btn mt-4 w-full !py-2 !text-xs">
-            Create Post
-          </Link>
+          <div className="flex flex-col gap-2 mt-4">
+            <Link href="/post" className="btn w-full !py-2 !text-xs text-center">
+              Create Post
+            </Link>
+            <button
+              type="button"
+              onClick={() => setCreateCommunityOpen(true)}
+              className="btn btn-outline w-full !py-2 !text-xs inline-flex items-center justify-center gap-1.5"
+            >
+              <PlusIcon size={14} />
+              Create Community
+            </button>
+          </div>
         </div>
 
         {/* Community Rules */}
@@ -364,6 +377,11 @@ export function RedditHomeFeed() {
           </ol>
         </div>
       </aside>
+
+      <CreateCommunityModal
+        isOpen={createCommunityOpen}
+        onClose={() => setCreateCommunityOpen(false)}
+      />
     </div>
   );
 }

@@ -550,6 +550,62 @@ func (s *server) subgetits(w http.ResponseWriter, r *http.Request) {
 	jsonJSON(w, 200, out)
 }
 
+func (s *server) createSubgetit(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.currentUser(r)
+	if !ok {
+		errorJSON(w, 401, "login required to create a community")
+		return
+	}
+	var q struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&q)
+	name := strings.ToLower(clean(q.Name))
+	name = strings.TrimPrefix(name, "r/")
+	name = strings.TrimPrefix(name, "g/")
+	name = clean(name)
+
+	if len(name) < 3 || len(name) > 30 {
+		errorJSON(w, 400, "community name must be between 3 and 30 characters")
+		return
+	}
+
+	for _, ch := range name {
+		if !((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-') {
+			errorJSON(w, 400, "community name can only contain letters, numbers, underscores, and hyphens")
+			return
+		}
+	}
+
+	desc := clean(q.Description)
+
+	res, err := s.db.ExecContext(r.Context(), "INSERT INTO subreddit(name, description) VALUES(?, ?)", name, desc)
+	if err != nil {
+		if strings.Contains(err.Error(), "Duplicate") || strings.Contains(err.Error(), "1062") {
+			errorJSON(w, 409, "a community with that name already exists")
+			return
+		}
+		errorJSON(w, 400, err.Error())
+		return
+	}
+
+	id, _ := res.LastInsertId()
+
+	// Automatically join creator to new community
+	_, _ = s.db.ExecContext(r.Context(), "INSERT INTO joins(user_id, subreddit_id) VALUES(?, ?) ON DUPLICATE KEY UPDATE joined_at=CURRENT_TIMESTAMP", u.ID, id)
+
+	// If user is not yet a moderator of any subreddit, assign them as moderator of this new subreddit
+	_, _ = s.db.ExecContext(r.Context(), "UPDATE app_user SET mod_subreddit_id=?, mod_since_at=CURRENT_TIMESTAMP WHERE user_id=? AND mod_subreddit_id IS NULL", id, u.ID)
+
+	jsonJSON(w, 201, map[string]any{
+		"id":          id,
+		"name":        name,
+		"description": desc,
+		"joined":      true,
+	})
+}
+
 func (s *server) subgetitDetails(w http.ResponseWriter, r *http.Request) {
 	target := clean(r.PathValue("name"))
 	var id, memberCount, postCount int64
